@@ -2,68 +2,66 @@
 
 #include "common.h"
 
-#include <sstream>
+#include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 namespace particle {
 
 namespace util {
 
-std::string format(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+// Wrapper over boost::format() providing variadic arguments syntax
+template<typename... ArgsT>
+std::string format(const std::string& fmt, ArgsT&&... args);
 
-std::string toString(int val);
-std::string toString(double val);
-std::string toString(std::string str); // Dummy conversion
+// Convenience functions for string conversions
+template<typename T>
+std::string toString(const T& val);
 
 template<typename T>
-T fromString(const std::string& str, T defaultVal = T());
+T fromString(const std::string& str);
 
-template<>
-int fromString(const std::string& str, int defaultVal);
+template<typename T>
+T fromString(const std::string& str, const T& defVal);
 
-template<>
-double fromString(const std::string& str, double defaultVal);
+// Internal implementation
+namespace detail {
 
-template<>
-std::string fromString(const std::string& str, std::string defaultVal); // Dummy conversion
+inline std::string format(boost::format& f) {
+    return f.str();
+}
+
+template<typename T, typename... ArgsT>
+inline std::string format(boost::format& f, T&& arg, ArgsT&&... args) {
+    return format(f % std::forward<T>(arg), std::forward<ArgsT>(args)...);
+}
+
+} // namespace particle::util::detail
 
 } // namespace particle::util
 
 } // namespace particle
 
-inline std::string particle::util::toString(int val) {
-    return std::to_string(val);
+template<typename... ArgsT>
+inline std::string particle::util::format(const std::string& fmt, ArgsT&&... args) {
+    boost::format f(fmt);
+    return detail::format(f, std::forward<ArgsT>(args)...);
 }
 
-inline std::string particle::util::toString(double val) {
-    // Use default precision and formatting
-    std::ostringstream s;
-    s << val;
-    return s.str();
+template<typename T>
+inline std::string particle::util::toString(const T& val) {
+    return boost::lexical_cast<std::string>(val);
 }
 
-inline std::string particle::util::toString(std::string str) {
-    return std::move(str);
+template<typename T>
+inline T particle::util::fromString(const std::string& str) {
+    return boost::lexical_cast<T>(str);
 }
 
-template<>
-inline int particle::util::fromString(const std::string& str, int defaultVal) {
+template<typename T>
+inline T particle::util::fromString(const std::string& str, const T& defVal) {
     try {
-        return std::stoi(str, nullptr, 0);
-    } catch (const std::logic_error&) {
-        return defaultVal;
+        return boost::lexical_cast<T>(str);
+    } catch (const boost::bad_lexical_cast&) {
+        return defVal;
     }
-}
-
-template<>
-inline double particle::util::fromString(const std::string& str, double defaultVal) {
-    try {
-        return std::stod(str, nullptr);
-    } catch (const std::logic_error&) {
-        return defaultVal;
-    }
-}
-
-template<>
-inline std::string particle::util::fromString(const std::string& str, std::string defaultVal) {
-    return std::move(str);
 }

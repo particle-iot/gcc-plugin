@@ -6,7 +6,5 @@
 #include <cstdint>
 #include <cassert>
 
-// Make sure this header is included before any GCC plugin headers
+// GCC 5.4.x: Including this header before GCC plugin headers helps to avoid some weird global name conflicts
 #include <ios>
-
-#include <iostream> // FIXME
