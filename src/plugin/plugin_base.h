@@ -1,5 +1,6 @@
 #pragma once
 
+#include "plugin/pass_info.h"
 #include "plugin/attr_spec.h"
 #include "plugin/gcc.h"
 #include "util/variant.h"
@@ -43,6 +44,9 @@ public:
 
 protected:
     virtual void init() = 0;
+
+    // Registers a plugin pass
+    void registerPass(const PassInfo& info);
 
     // Registers a plugin attribute
     void registerAttr(const AttrSpec& attr);

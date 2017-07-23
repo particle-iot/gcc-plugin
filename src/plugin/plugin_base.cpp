@@ -35,6 +35,18 @@ void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *vers
     register_callback(name_.data(), PLUGIN_ATTRIBUTES, registerAttrs, this);
 }
 
+void particle::PluginBase::registerPass(const PassInfo& info) {
+    if (!info.pass() || info.refPassName().empty()) {
+        throw Error("Invalid pass info");
+    }
+    register_pass_info p = { 0 };
+    p.pass = info.pass();
+    p.reference_pass_name = info.refPassName().data();
+    p.ref_pass_instance_number = info.refPassInstanceNum();
+    p.pos_op = info.pos();
+    register_callback(name_.data(), PLUGIN_PASS_MANAGER_SETUP, nullptr, &p);
+}
+
 void particle::PluginBase::registerAttr(const AttrSpec& attr) {
     if (attr.name().empty()) {
         throw Error("Invalid attribute name");
@@ -90,7 +102,7 @@ void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
 
 tree particle::PluginBase::attrHandler(tree* node, tree name, tree args, int flags, bool* noAddAttrs) {
     try {
-        PluginBase* const p = instance();
+        PluginBase* const p = PluginBase::instance();
         const char* const attrName = IDENTIFIER_POINTER(name);
         const auto it = p->attrSpecs_.find(attrName);
         if (it != p->attrSpecs_.end() && it->second.handler) {
@@ -100,7 +112,7 @@ tree particle::PluginBase::attrHandler(tree* node, tree name, tree args, int fla
                 attrArgs.push_back(constVal(TREE_VALUE(t)));
             }
             assert(node);
-            it->second.handler(*node, attrArgs);
+            it->second.handler(*node, std::move(attrArgs));
         }
     } catch (const std::exception& e) {
         error(e.what());

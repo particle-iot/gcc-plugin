@@ -69,3 +69,7 @@ particle::Variant particle::constVal(const_tree t) {
         throw TreeError(t, "Unsupported constant type");
     }
 }
+
+particle::Location particle::treeLoc(const_tree t) {
+    return Location(DECL_SOURCE_LOCATION(t)); // FIXME
+}

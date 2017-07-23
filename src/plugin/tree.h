@@ -1,5 +1,6 @@
 #pragma once
 
+#include "plugin/location.h"
 #include "plugin/gcc.h"
 #include "util/variant.h"
 #include "error.h"
@@ -23,10 +24,14 @@ public:
     explicit TreeError(const_tree t, ArgsT&&... args);
 };
 
+// Return value of a constant node
 int64_t constIntVal(const_tree t);
 double constRealVal(const_tree t);
 std::string constStrVal(const_tree t);
 Variant constVal(const_tree t);
+
+// Returns location of a node in the source code
+Location treeLoc(const_tree t);
 
 } // namespace particle
 

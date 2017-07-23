@@ -12,7 +12,7 @@ namespace particle {
 class AttrSpec {
 public:
     // Handler function
-    typedef std::function<void(tree, const std::vector<Variant>&)> Handler;
+    typedef std::function<void(tree, std::vector<Variant>)> Handler;
 
     AttrSpec(std::string name = std::string());
 
