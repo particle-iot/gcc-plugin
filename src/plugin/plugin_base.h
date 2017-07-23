@@ -6,6 +6,7 @@
 #include "util/string.h"
 #include "common.h"
 
+#include <vector>
 #include <map>
 
 #define PARTICLE_PLUGIN_INIT(_type) \
@@ -41,9 +42,7 @@ public:
     static PluginBase* instance();
 
 protected:
-    virtual void init();
-    virtual void registerAttrs();
-    virtual void defineMacros();
+    virtual void init() = 0;
 
     // Registers a plugin attribute
     void registerAttr(const AttrSpec& attr);
@@ -61,6 +60,7 @@ private:
     };
 
     std::map<std::string, AttrSpecData> attrSpecs_;
+    std::vector<std::string> macros_;
 
     std::string name_; // Plugin name
     Args args_; // Plugin arguments
@@ -98,18 +98,6 @@ inline void particle::PluginBase::error(const std::string& fmt, ArgsT&&... args)
 
 inline particle::PluginBase* particle::PluginBase::instance() {
     return s_instance;
-}
-
-inline void particle::PluginBase::init() {
-    // Default implementation does nothing
-}
-
-inline void particle::PluginBase::registerAttrs() {
-    // Default implementation does nothing
-}
-
-inline void particle::PluginBase::defineMacros() {
-    // Default implementation does nothing
 }
 
 template<typename T>

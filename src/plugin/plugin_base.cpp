@@ -40,11 +40,11 @@ void particle::PluginBase::registerAttr(const AttrSpec& attr) {
         throw Error("Invalid attribute name");
     }
     // Note: GCC stores attribute specs by reference
-    const auto res = attrSpecs_.insert(std::make_pair(attr.name(), AttrSpecData()));
-    if (!res.second) {
+    const auto r = attrSpecs_.insert(std::make_pair(attr.name(), AttrSpecData()));
+    if (!r.second) {
         throw Error("Attribute \"%s\" is already registered", attr.name());
     }
-    const auto it = res.first;
+    const auto it = r.first;
     AttrSpecData& d = it->second;
     std::memset(&d.gcc, 0, sizeof(d.gcc));
     d.gcc.name = it->first.data();
@@ -52,13 +52,11 @@ void particle::PluginBase::registerAttr(const AttrSpec& attr) {
     d.gcc.max_length = attr.maxArgCount();
     d.gcc.handler = attrHandler; // Plugin API callback
     d.handler = attr.handler(); // User function
-    // TODO: Add support for C++11 attributes
-    register_attribute(&d.gcc);
 }
 
 void particle::PluginBase::defineMacro(const std::string& name) {
-    assert(parse_in);
-    cpp_define(parse_in, name.data());
+    // TODO: Handle duplicate definitions?
+    macros_.push_back(name);
 }
 
 particle::PluginBase::Args particle::PluginBase::parsePluginArgs(const plugin_name_args* args) {
@@ -75,9 +73,16 @@ void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
     try {
         PluginBase* const p = static_cast<PluginBase*>(userData);
         // Register plugin attributes
-        p->registerAttrs();
+        for (const auto& pair: p->attrSpecs_) {
+            // TODO: Register C++11 attribute as well
+            register_attribute(&pair.second.gcc);
+        }
         // Define plugin macros
-        p->defineMacros();
+        assert(p->macros_.empty() || parse_in);
+        for (const std::string& macro: p->macros_) {
+            cpp_define(parse_in, macro.data());
+        }
+        p->macros_.clear(); // Not needed anymore
     } catch (const std::exception& e) {
         error(e.what());
     }
