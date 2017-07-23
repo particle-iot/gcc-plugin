@@ -29,6 +29,10 @@ void tree_class_check_failed(const_tree t, const enum tree_code_class, const cha
     treeCheckFailed(t, file, line);
 }
 
+void tree_operand_check_failed(int, const_tree t, const char* file, int line, const char*) {
+    treeCheckFailed(t, file, line);
+}
+
 void tree_int_cst_elt_check_failed(int, int, const char* file, int line, const char*) {
     treeCheckFailed(NULL_TREE, file, line);
 }
@@ -68,8 +72,4 @@ particle::Variant particle::constVal(const_tree t) {
     default:
         throw TreeError(t, "Unsupported constant type");
     }
-}
-
-particle::Location particle::treeLoc(const_tree t) {
-    return Location(DECL_SOURCE_LOCATION(t)); // FIXME
 }

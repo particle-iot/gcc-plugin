@@ -14,8 +14,8 @@ class LogPass: public gimple_opt_pass {
 public:
     explicit LogPass(gcc::context* ctx);
 
-    virtual unsigned execute(function* func) override;
-    virtual bool gate(function* func) override;
+    virtual unsigned execute(function* fn) override;
+    virtual bool gate(function* fn) override;
     virtual opt_pass* clone() override;
 
     void attrHandler(tree t, std::vector<Variant> args);

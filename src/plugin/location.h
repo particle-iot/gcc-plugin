@@ -9,7 +9,7 @@ namespace particle {
 class Location {
 public:
     Location(); // Constructs an invalid location
-    explicit Location(location_t loc);
+    Location(location_t loc);
 
     std::string file() const;
     int line() const;
@@ -20,6 +20,8 @@ public:
     std::string toString() const;
 
     bool operator<(const Location& loc) const;
+
+    operator location_t() const;
 
 private:
     location_t loc_;
@@ -61,4 +63,8 @@ inline std::string particle::Location::toString() const {
 
 inline bool particle::Location::operator<(const Location& loc) const {
     return (loc_ < loc.loc_);
+}
+
+inline particle::Location::operator location_t() const {
+    return loc_;
 }
