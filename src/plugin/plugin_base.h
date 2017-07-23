@@ -1,5 +1,6 @@
 #pragma once
 
+#include "plugin/attr_spec.h"
 #include "plugin/gcc.h"
 #include "util/variant.h"
 #include "util/string.h"
@@ -17,7 +18,7 @@ namespace particle {
 // Base class for GCC plugins
 class PluginBase {
 public:
-    typedef std::map<std::string, util::Variant> Args;
+    typedef std::map<std::string, util::Variant> Args; // Plugin arguments
 
     PluginBase();
     virtual ~PluginBase();
@@ -40,8 +41,12 @@ public:
     static PluginBase* instance();
 
 protected:
-    virtual void init() = 0;
+    virtual void init();
+    virtual void registerAttrs();
     virtual void defineMacros();
+
+    // Registers a plugin attribute
+    void registerAttr(const AttrSpec& attr);
 
     // Defines a preprocessor macro
     void defineMacro(const std::string& name);
@@ -50,15 +55,23 @@ protected:
     void defineMacro(const std::string& name, const T& val);
 
 private:
+    struct AttrSpecData {
+        attribute_spec gcc;
+        AttrSpec::Handler handler;
+    };
+
+    std::map<std::string, AttrSpecData> attrSpecs_;
+
     std::string name_; // Plugin name
     Args args_; // Plugin arguments
 
     static PluginBase* s_instance;
 
-    // Plugin callbacks
-    static void registerAttrs(void* gccData, void* userData);
-
     static Args parsePluginArgs(const plugin_name_args* args);
+
+    // Plugin callbacks
+    static void registerAttrs(void* gccData, void* userData); // event: PLUGIN_ATTRIBUTES
+    static Tree attrHandler(Tree *node, Tree name, Tree args, int flags, bool *noAddAttrs);
 };
 
 template<typename T>
@@ -85,6 +98,14 @@ inline void particle::PluginBase::error(const std::string& fmt, ArgsT&&... args)
 
 inline particle::PluginBase* particle::PluginBase::instance() {
     return s_instance;
+}
+
+inline void particle::PluginBase::init() {
+    // Default implementation does nothing
+}
+
+inline void particle::PluginBase::registerAttrs() {
+    // Default implementation does nothing
 }
 
 inline void particle::PluginBase::defineMacros() {

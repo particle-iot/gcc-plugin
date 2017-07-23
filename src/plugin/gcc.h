@@ -8,6 +8,14 @@
 #include <plugin-version.h>
 
 #ifndef NDEBUG
+
 #include <print-tree.h>
 #include <tree-pretty-print.h>
-#endif
+
+#endif // !defined(NDEBUG)
+
+namespace particle {
+
+typedef tree Tree; // For better readability
+
+} // namespace particle
