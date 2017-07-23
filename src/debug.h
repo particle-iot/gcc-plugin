@@ -9,7 +9,7 @@
 
 #define DEBUG(_fmt, ...) \
         do { \
-            std::cout << ::particle::util::format(_fmt, ##__VA_ARGS__) << std::endl; \
+            std::cerr << ::particle::format(_fmt, ##__VA_ARGS__) << std::endl; \
         } while (false)
 
 #else // defined(NDEBUG)

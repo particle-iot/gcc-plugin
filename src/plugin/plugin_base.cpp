@@ -1,5 +1,6 @@
 #include "plugin/plugin_base.h"
 
+#include "plugin/tree.h"
 #include "error.h"
 #include "debug.h"
 
@@ -65,7 +66,7 @@ particle::PluginBase::Args particle::PluginBase::parsePluginArgs(const plugin_na
     for (int i = 0; i < args->argc; ++i) {
         const plugin_argument& arg = args->argv[i];
         assert(arg.key);
-        argMap[arg.key] = arg.value ? util::Variant(arg.value) : util::Variant();
+        argMap[arg.key] = arg.value ? Variant(arg.value) : Variant();
     }
     return argMap;
 }
@@ -82,15 +83,17 @@ void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
     }
 }
 
-particle::Tree particle::PluginBase::attrHandler(Tree *node, Tree name, Tree args, int flags,
-        bool *noAddAttrs) {
+tree particle::PluginBase::attrHandler(tree* node, tree name, tree args, int flags, bool* noAddAttrs) {
     try {
         PluginBase* const p = instance();
         const char* const attrName = IDENTIFIER_POINTER(name);
         const auto it = p->attrSpecs_.find(attrName);
         if (it != p->attrSpecs_.end() && it->second.handler) {
             // Get attribute arguments
-            std::vector<util::Variant> attrArgs;
+            std::vector<Variant> attrArgs;
+            for (tree& t = args; t != NULL_TREE; t = TREE_CHAIN(t)) {
+                attrArgs.push_back(constVal(TREE_VALUE(t)));
+            }
             assert(node);
             it->second.handler(*node, attrArgs);
         }

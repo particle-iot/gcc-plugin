@@ -22,5 +22,5 @@ void particle::Plugin::defineMacros() {
     defineMacro("PARTICLE_GCC_PLUGIN", PLUGIN_VERSION);
 }
 
-void particle::Plugin::attrHandler(Tree tree, const std::vector<util::Variant>& args) {
+void particle::Plugin::attrHandler(tree t, const std::vector<Variant>& args) {
 }

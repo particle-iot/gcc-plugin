@@ -11,10 +11,9 @@ class Error: public std::exception {
 public:
     Error();
     explicit Error(std::string msg);
-    explicit Error(const char* msg);
 
     template<typename... ArgsT>
-    explicit Error(const char* fmt, ArgsT&&... args);
+    explicit Error(const std::string& fmt, ArgsT&&... args);
 
     const std::string& message() const;
 
@@ -33,13 +32,9 @@ inline particle::Error::Error(std::string msg) :
         msg_(std::move(msg)) {
 }
 
-inline particle::Error::Error(const char* msg) :
-        msg_(msg) {
-}
-
 template<typename... ArgsT>
-inline particle::Error::Error(const char* fmt, ArgsT&&... args) :
-        msg_(util::format(fmt, std::forward<ArgsT>(args)...)) {
+inline particle::Error::Error(const std::string& fmt, ArgsT&&... args) :
+        msg_(format(fmt, std::forward<ArgsT>(args)...)) {
 }
 
 inline const std::string& particle::Error::message() const {

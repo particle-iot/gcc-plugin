@@ -12,7 +12,7 @@ protected:
     virtual void defineMacros() override;
 
 private:
-    void attrHandler(Tree tree, const std::vector<util::Variant>& args);
+    void attrHandler(tree t, const std::vector<Variant>& args);
 };
 
 } // namespace particle

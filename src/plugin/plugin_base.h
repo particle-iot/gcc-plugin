@@ -18,7 +18,7 @@ namespace particle {
 // Base class for GCC plugins
 class PluginBase {
 public:
-    typedef std::map<std::string, util::Variant> Args; // Plugin arguments
+    typedef std::map<std::string, Variant> Args; // Plugin arguments
 
     PluginBase();
     virtual ~PluginBase();
@@ -71,7 +71,7 @@ private:
 
     // Plugin callbacks
     static void registerAttrs(void* gccData, void* userData); // event: PLUGIN_ATTRIBUTES
-    static Tree attrHandler(Tree *node, Tree name, Tree args, int flags, bool *noAddAttrs);
+    static tree attrHandler(tree* node, tree name, tree args, int flags, bool* noAddAttrs);
 };
 
 template<typename T>
@@ -93,7 +93,7 @@ inline void particle::PluginBase::error(const std::string& msg) {
 
 template<typename... ArgsT>
 inline void particle::PluginBase::error(const std::string& fmt, ArgsT&&... args) {
-    error(util::format(fmt, std::forward<ArgsT>(args)...));
+    error(format(fmt, std::forward<ArgsT>(args)...));
 }
 
 inline particle::PluginBase* particle::PluginBase::instance() {
@@ -114,7 +114,7 @@ inline void particle::PluginBase::defineMacros() {
 
 template<typename T>
 inline void particle::PluginBase::defineMacro(const std::string& name, const T& val) {
-    defineMacro(util::format("%1%=%2%", name, val));
+    defineMacro(format("%1%=%2%", name, val));
 }
 
 template<typename PluginT>

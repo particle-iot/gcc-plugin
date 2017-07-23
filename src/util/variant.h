@@ -6,8 +6,6 @@
 
 namespace particle {
 
-namespace util {
-
 class Variant {
 public:
     enum Type {
@@ -20,12 +18,12 @@ public:
 
     Variant();
     Variant(bool val);
-    Variant(int val);
+    Variant(int64_t val);
     Variant(double val);
     Variant(std::string str);
 
     bool toBool() const;
-    int toInt() const;
+    int64_t toInt() const;
     double toDouble() const;
     std::string toString() const;
 
@@ -38,49 +36,47 @@ public:
     bool isString() const;
 
 private:
-    typedef boost::variant<boost::blank, bool, int, double, std::string> ValueType;
+    typedef boost::variant<boost::blank, bool, int64_t, double, std::string> ValueType;
     ValueType val_;
 };
 
-} // namespace util
-
 } // namespace particle
 
-inline particle::util::Variant::Variant() {
+inline particle::Variant::Variant() {
 }
 
-inline particle::util::Variant::Variant(bool val) :
+inline particle::Variant::Variant(bool val) :
         val_(val) {
 }
 
-inline particle::util::Variant::Variant(int val) :
+inline particle::Variant::Variant(int64_t val) :
         val_(val) {
 }
 
-inline particle::util::Variant::Variant(double val) :
+inline particle::Variant::Variant(double val) :
         val_(val) {
 }
 
-inline particle::util::Variant::Variant(std::string str) :
+inline particle::Variant::Variant(std::string str) :
         val_(std::move(str)) {
 }
 
-inline bool particle::util::Variant::isNone() const {
+inline bool particle::Variant::isNone() const {
     return (type() == NONE);
 }
 
-inline bool particle::util::Variant::isBool() const {
+inline bool particle::Variant::isBool() const {
     return (type() == BOOL);
 }
 
-inline bool particle::util::Variant::isInt() const {
+inline bool particle::Variant::isInt() const {
     return (type() == INT);
 }
 
-inline bool particle::util::Variant::isDouble() const {
+inline bool particle::Variant::isDouble() const {
     return (type() == DOUBLE);
 }
 
-inline bool particle::util::Variant::isString() const {
+inline bool particle::Variant::isString() const {
     return (type() == STRING);
 }

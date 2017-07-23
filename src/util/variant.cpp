@@ -5,7 +5,6 @@
 namespace {
 
 using namespace particle;
-using util::Variant;
 
 class TypeVisitor: public boost::static_visitor<Variant::Type> {
 public:
@@ -17,7 +16,7 @@ public:
         return Variant::BOOL;
     }
 
-    Variant::Type operator()(int) const {
+    Variant::Type operator()(int64_t) const {
         return Variant::INT;
     }
 
@@ -30,7 +29,6 @@ public:
     }
 };
 
-// Used by Variant::toBool(), Variant::toInt(), Variant::toDouble()
 template<typename T>
 class ValueVisitor: public boost::static_visitor<T> {
 public:
@@ -39,7 +37,7 @@ public:
     }
 
     T operator()(const std::string& str) const {
-        return util::fromString<T>(str);
+        return fromStr<T>(str);
     }
 
     template<typename ValueT>
@@ -48,7 +46,7 @@ public:
     }
 };
 
-// Used by Variant::toString()
+// Specialization for Variant::toString()
 template<>
 class ValueVisitor<std::string>: public boost::static_visitor<std::string> {
 public:
@@ -62,28 +60,28 @@ public:
 
     template<typename ValueT>
     std::string operator()(ValueT val) const {
-        return util::toString(val);
+        return toStr(val);
     }
 };
 
 } // namespace
 
-bool particle::util::Variant::toBool() const {
+bool particle::Variant::toBool() const {
     return boost::apply_visitor(ValueVisitor<bool>(), val_);
 }
 
-int particle::util::Variant::toInt() const {
-    return boost::apply_visitor(ValueVisitor<int>(), val_);
+int64_t particle::Variant::toInt() const {
+    return boost::apply_visitor(ValueVisitor<int64_t>(), val_);
 }
 
-double particle::util::Variant::toDouble() const {
+double particle::Variant::toDouble() const {
     return boost::apply_visitor(ValueVisitor<double>(), val_);
 }
 
-std::string particle::util::Variant::toString() const {
+std::string particle::Variant::toString() const {
     return boost::apply_visitor(ValueVisitor<std::string>(), val_);
 }
 
-particle::util::Variant::Type particle::util::Variant::type() const {
+particle::Variant::Type particle::Variant::type() const {
     return boost::apply_visitor(TypeVisitor(), val_);
 }
