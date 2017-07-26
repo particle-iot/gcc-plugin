@@ -17,7 +17,7 @@ public:
 
     bool valid() const;
 
-    std::string toString() const;
+    std::string toStr() const;
 
     bool operator<(const Location& loc) const;
 
@@ -54,7 +54,7 @@ inline bool particle::Location::valid() const {
     return (loc_ != UNKNOWN_LOCATION);
 }
 
-inline std::string particle::Location::toString() const {
+inline std::string particle::Location::toStr() const {
     if (!valid()) {
         return std::string();
     }

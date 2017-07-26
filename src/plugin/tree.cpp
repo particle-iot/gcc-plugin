@@ -61,7 +61,7 @@ std::string particle::constStrVal(const_tree t) {
 particle::Variant particle::constVal(const_tree t) {
     switch (TREE_CODE(t)) {
     case INTEGER_CST: {
-        return Variant(constIntVal(t));
+        return Variant((int)constIntVal(t));
     }
     case REAL_CST: {
         return Variant(constRealVal(t));

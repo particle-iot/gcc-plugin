@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 
 namespace particle {

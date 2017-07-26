@@ -69,10 +69,6 @@ private:
     std::string name_; // Plugin name
     Args args_; // Plugin arguments
 
-    static PluginBase* s_instance;
-
-    static Args parsePluginArgs(const plugin_name_args* args);
-
     // Plugin callbacks
     static void registerAttrs(void* gccData, void* userData); // event: PLUGIN_ATTRIBUTES
     static tree attrHandler(tree* node, tree name, tree args, int flags, bool* noAddAttrs);
@@ -98,10 +94,6 @@ inline void particle::PluginBase::error(const std::string& msg) {
 template<typename... ArgsT>
 inline void particle::PluginBase::error(const std::string& fmt, ArgsT&&... args) {
     error(format(fmt, std::forward<ArgsT>(args)...));
-}
-
-inline particle::PluginBase* particle::PluginBase::instance() {
-    return s_instance;
 }
 
 template<typename T>

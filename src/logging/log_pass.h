@@ -18,14 +18,13 @@ public:
     virtual bool gate(function* fn) override;
     virtual opt_pass* clone() override;
 
-    void attrHandler(tree t, std::vector<Variant> args);
+    void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
     PassInfo passInfo();
 
 private:
     struct LogFuncInfo {
-        std::string funcName;
-        int fmtArgIndex, attrArgIndex;
+        unsigned fmtArgIndex, attrArgIndex;
     };
 
     std::map<Location, LogFuncInfo> logFuncs_;

@@ -16,7 +16,7 @@ public:
         return Variant::BOOL;
     }
 
-    Variant::Type operator()(int64_t) const {
+    Variant::Type operator()(int) const {
         return Variant::INT;
     }
 
@@ -70,8 +70,8 @@ bool particle::Variant::toBool() const {
     return boost::apply_visitor(ValueVisitor<bool>(), val_);
 }
 
-int64_t particle::Variant::toInt() const {
-    return boost::apply_visitor(ValueVisitor<int64_t>(), val_);
+int particle::Variant::toInt() const {
+    return boost::apply_visitor(ValueVisitor<int>(), val_);
 }
 
 double particle::Variant::toDouble() const {

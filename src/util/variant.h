@@ -18,12 +18,12 @@ public:
 
     Variant();
     Variant(bool val);
-    Variant(int64_t val);
+    Variant(int val);
     Variant(double val);
     Variant(std::string str);
 
     bool toBool() const;
-    int64_t toInt() const;
+    int toInt() const;
     double toDouble() const;
     std::string toString() const;
 
@@ -36,7 +36,7 @@ public:
     bool isString() const;
 
 private:
-    typedef boost::variant<boost::blank, bool, int64_t, double, std::string> ValueType;
+    typedef boost::variant<boost::blank, bool, int, double, std::string> ValueType;
     ValueType val_;
 };
 
@@ -49,7 +49,7 @@ inline particle::Variant::Variant(bool val) :
         val_(val) {
 }
 
-inline particle::Variant::Variant(int64_t val) :
+inline particle::Variant::Variant(int val) :
         val_(val) {
 }
 

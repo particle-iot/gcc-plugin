@@ -9,15 +9,31 @@ extern void register_attribute(const attribute_spec*);
 // Required by the plugins spec
 int plugin_is_GPL_compatible;
 
-particle::PluginBase* particle::PluginBase::s_instance = nullptr;
+namespace {
+
+using namespace particle;
+
+PluginBase* g_instance = nullptr; // Plugin instance
+
+PluginBase::Args parsePluginArgs(const plugin_name_args* args) {
+    PluginBase::Args argMap;
+    for (int i = 0; i < args->argc; ++i) {
+        const plugin_argument& arg = args->argv[i];
+        assert(arg.key);
+        argMap[arg.key] = arg.value ? Variant(arg.value) : Variant();
+    }
+    return argMap;
+}
+
+} // namespace
 
 particle::PluginBase::PluginBase() {
-    assert(!s_instance);
-    s_instance = this;
+    assert(!g_instance);
+    g_instance = this;
 }
 
 particle::PluginBase::~PluginBase() {
-    s_instance = nullptr;
+    g_instance = nullptr;
 }
 
 void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *version) {
@@ -33,6 +49,10 @@ void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *vers
     this->init();
     // Register callbacks
     register_callback(name_.data(), PLUGIN_ATTRIBUTES, registerAttrs, this);
+}
+
+particle::PluginBase* particle::PluginBase::instance() {
+    return g_instance;
 }
 
 void particle::PluginBase::registerPass(const PassInfo& info) {
@@ -69,16 +89,6 @@ void particle::PluginBase::registerAttr(const AttrSpec& attr) {
 void particle::PluginBase::defineMacro(const std::string& name) {
     // TODO: Handle duplicate definitions?
     macros_.push_back(name);
-}
-
-particle::PluginBase::Args particle::PluginBase::parsePluginArgs(const plugin_name_args* args) {
-    Args argMap;
-    for (int i = 0; i < args->argc; ++i) {
-        const plugin_argument& arg = args->argv[i];
-        assert(arg.key);
-        argMap[arg.key] = arg.value ? Variant(arg.value) : Variant();
-    }
-    return argMap;
 }
 
 void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
