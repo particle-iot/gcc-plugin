@@ -1,6 +1,5 @@
 #include "plugin/tree.h"
 
-#include "error.h"
 #include "debug.h"
 
 namespace {
@@ -71,5 +70,15 @@ particle::Variant particle::constVal(const_tree t) {
     }
     default:
         throw TreeError(t, "Unsupported constant type");
+    }
+}
+
+particle::Location particle::treeLocation(const_tree t) {
+    if (EXPR_P(t)) {
+        return EXPR_LOCATION(t);
+    } if (DECL_P(t)) {
+        return DECL_SOURCE_LOCATION(t);
+    } else { // TODO
+        return Location();
     }
 }

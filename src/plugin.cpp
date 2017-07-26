@@ -13,16 +13,21 @@ const int PLUGIN_VERSION = 1; // 0.0.1
 PARTICLE_PLUGIN_INIT(particle::Plugin)
 
 particle::Plugin::Plugin() :
-        logPass_(g) { // Initialize pass using global GCC context
+        logPass_(g) { // `g` is a global GCC context
 }
 
 void particle::Plugin::init() {
+    // Define plugin macro
+    defineMacro("PARTICLE_GCC_PLUGIN", PLUGIN_VERSION);
+    // Register attributes
     registerAttr(AttrSpec()
             .name("particle")
             .minArgCount(1) // Requires at least one argument
             .handler(std::bind(&Plugin::attrHandler, this, _1, _2)));
-    defineMacro("PARTICLE_GCC_PLUGIN", PLUGIN_VERSION);
-    registerPass(logPass_.passInfo());
+    // Register compiler passes
+    registerPass(&logPass_, PassRegInfo()
+            .runAfter("cfg") // Run after a control flow graph is built
+            .refPassInstanceNum(1)); // Run once per function
 }
 
 void particle::Plugin::attrHandler(tree t, std::vector<Variant> args) {

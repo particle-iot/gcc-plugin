@@ -55,12 +55,12 @@ particle::PluginBase* particle::PluginBase::instance() {
     return g_instance;
 }
 
-void particle::PluginBase::registerPass(const PassInfo& info) {
-    if (!info.pass() || info.refPassName().empty()) {
+void particle::PluginBase::registerPass(opt_pass* pass, const PassRegInfo& info) {
+    if (info.refPassName().empty()) {
         throw Error("Invalid pass info");
     }
     register_pass_info p = { 0 };
-    p.pass = info.pass();
+    p.pass = pass;
     p.reference_pass_name = info.refPassName().data();
     p.ref_pass_instance_number = info.refPassInstanceNum();
     p.pos_op = info.pos();

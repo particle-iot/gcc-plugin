@@ -1,7 +1,7 @@
 #pragma once
 
-#include "plugin/pass_info.h"
-#include "plugin/location.h"
+#include "plugin/pass.h"
+#include "plugin/tree.h"
 #include "plugin/gcc.h"
 #include "util/variant.h"
 #include "common.h"
@@ -10,28 +10,23 @@
 
 namespace particle {
 
-class LogPass: public gimple_opt_pass {
+class LogPass: public Pass<gimple_opt_pass> {
 public:
     explicit LogPass(gcc::context* ctx);
 
+    // gimple_opt_pass
     virtual unsigned execute(function* fn) override;
     virtual bool gate(function* fn) override;
     virtual opt_pass* clone() override;
 
     void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
-    PassInfo passInfo();
-
 private:
     struct LogFuncInfo {
         unsigned fmtArgIndex, attrArgIndex;
     };
 
-    std::map<Location, LogFuncInfo> logFuncs_;
+    std::map<DeclUid, LogFuncInfo> logFuncs_;
 };
 
 } // namespace particle
-
-inline particle::PassInfo particle::LogPass::passInfo() {
-    return PassInfo(this).runAfter("cfg");
-}

@@ -1,7 +1,5 @@
 #include "logging/log_pass.h"
 
-#include "plugin/plugin_base.h"
-#include "plugin/tree.h"
 #include "debug.h"
 
 #define DEBUG_PASS_ENABLED 1
@@ -65,7 +63,7 @@ unsigned funcArgCount(tree fnDecl) {
 } // namespace
 
 particle::LogPass::LogPass(gcc::context* ctx) :
-        gimple_opt_pass(LOG_PASS_DATA, ctx) {
+        Pass<gimple_opt_pass>(LOG_PASS_DATA, ctx) {
 }
 
 unsigned particle::LogPass::execute(function* fn) {
@@ -80,14 +78,16 @@ unsigned particle::LogPass::execute(function* fn) {
                 }
                 // Get declaration of the called function
                 tree fnDecl = gimple_call_fndecl(stmt);
-                location_t fnDeclLoc = DECL_SOURCE_LOCATION(fnDecl);
-                const auto it = logFuncs_.find(fnDeclLoc);
+                const auto it = logFuncs_.find(DECL_UID(fnDecl));
                 if (it == logFuncs_.end()) {
                     continue; // Not a logging function
                 }
                 const LogFuncInfo& logFunc = it->second;
-                // Get number of function arguments
-                // const int argCount = gimple_call_num_args(stmt);
+                // Get format string argment
+                const unsigned argCount = gimple_call_num_args(stmt);
+                if (logFunc.fmtArgIndex >= argCount) {
+                    continue;
+                }
                 tree t = gimple_call_arg(stmt, logFunc.fmtArgIndex);
                 t = TREE_OPERAND(t, 0);
                 if (TREE_CODE(t) != STRING_CST) {
@@ -96,8 +96,10 @@ unsigned particle::LogPass::execute(function* fn) {
                 DEBUG("%s", constStrVal(t)); // FIXME
             }
         }
+    } catch (const TreeError& e) {
+        error(treeLocation(e.where()), e.message());
     } catch (const std::exception& e) {
-        PluginBase::error(e.what());
+        error(e.what());
     }
     return 0; // No additional TODOs
 }
@@ -128,7 +130,6 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
     LogFuncInfo logFunc = { 0 };
     logFunc.fmtArgIndex = fmtArgIndex - 1; // Convert to 0-based index
     logFunc.attrArgIndex = funcAttrArgIndex(t);
-    const Location loc(DECL_SOURCE_LOCATION(t));
-    DEBUG_PASS("%s: %s: %s()", name, loc.toStr(), IDENTIFIER_POINTER(DECL_NAME(t)));
-    logFuncs_[loc] = std::move(logFunc);
+    DEBUG_PASS("%s: %s: %s()", name, treeLocation(t).toStr(), IDENTIFIER_POINTER(DECL_NAME(t)));
+    logFuncs_[DECL_UID(t)] = std::move(logFunc);
 }
