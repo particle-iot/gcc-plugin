@@ -3,6 +3,7 @@ TARGET_TYPE = lib-shared
 
 SRC = src/logging/log_pass.cpp \
 	src/plugin/plugin_base.cpp \
+	src/plugin/gimple.cpp \
 	src/plugin/tree.cpp \
 	src/util/variant.cpp \
 	src/plugin.cpp

@@ -17,9 +17,7 @@ public:
 
     bool valid() const;
 
-    std::string toStr() const;
-
-    bool operator<(const Location& loc) const;
+    std::string str() const;
 
     operator location_t() const;
 
@@ -54,15 +52,11 @@ inline bool particle::Location::valid() const {
     return (loc_ != UNKNOWN_LOCATION);
 }
 
-inline std::string particle::Location::toStr() const {
+inline std::string particle::Location::str() const {
     if (!valid()) {
         return std::string();
     }
     return format("%s:%d:%s", file(), line(), column());
-}
-
-inline bool particle::Location::operator<(const Location& loc) const {
-    return (loc_ < loc.loc_);
 }
 
 inline particle::Location::operator location_t() const {

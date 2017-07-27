@@ -22,11 +22,21 @@ public:
     void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
 private:
+    // Description of a logging function
     struct LogFuncInfo {
+        tree idFieldDecl, hasIdFieldDecl;
         unsigned fmtArgIndex, attrArgIndex;
+
+        LogFuncInfo() :
+                idFieldDecl(NULL_TREE),
+                fmtArgIndex(0),
+                attrArgIndex(0) {
+        }
     };
 
     std::map<DeclUid, LogFuncInfo> logFuncs_;
+
+    static LogFuncInfo logFuncInfo(const_tree fnDecl, unsigned fmtArgIndex);
 };
 
 } // namespace particle

@@ -18,5 +18,6 @@
 
 #include <print-tree.h>
 #include <tree-pretty-print.h>
+#include <gimple-pretty-print.h>
 
 #endif // !defined(NDEBUG)

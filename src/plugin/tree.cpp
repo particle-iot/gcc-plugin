@@ -1,13 +1,20 @@
 #include "plugin/tree.h"
 
+#include "error.h"
 #include "debug.h"
 
 namespace {
 
 using namespace particle;
 
+// Return class name of a tree node (for debugging purposes)
+std::string className(const_tree t) {
+    return TREE_CODE_CLASS_STRING(TREE_CODE_CLASS(TREE_CODE(t)));
+}
+
 inline void __attribute__((noreturn)) treeCheckFailed(const_tree t, const char* file, int line) {
-    throw TreeError(t, "Tree check failed: %s:%d", file, line);
+    DEBUG_TREE(t);
+    throw Error("Tree check failed: %s:%d", file, line);
 }
 
 } // namespace
@@ -58,7 +65,8 @@ std::string particle::constStrVal(const_tree t) {
 }
 
 particle::Variant particle::constVal(const_tree t) {
-    switch (TREE_CODE(t)) {
+    const tree_code code = TREE_CODE(t);
+    switch (code) {
     case INTEGER_CST: {
         return Variant((int)constIntVal(t));
     }
@@ -69,16 +77,28 @@ particle::Variant particle::constVal(const_tree t) {
         return Variant(constStrVal(t));
     }
     default:
-        throw TreeError(t, "Unsupported constant type");
+        throw Error("Unsupported constant type (code: %d)", code);
     }
 }
 
-particle::Location particle::treeLocation(const_tree t) {
+particle::Location particle::location(const_tree t) {
     if (EXPR_P(t)) {
         return EXPR_LOCATION(t);
     } if (DECL_P(t)) {
         return DECL_SOURCE_LOCATION(t);
     } else { // TODO
-        return Location();
+        throw Error("Unable to get location of the node (class: %s)", className(t));
     }
+}
+
+std::string particle::declName(const_tree t) {
+    t = DECL_NAME(t);
+    if (t == NULL_TREE) {
+        return std::string(); // Anonymous declaration
+    }
+    return IDENTIFIER_POINTER(t);
+}
+
+std::string particle::typeName(const_tree t) {
+    return IDENTIFIER_POINTER(TYPE_IDENTIFIER(t));
 }
