@@ -7,9 +7,9 @@
 #include "util/variant.h"
 #include "common.h"
 
-#include <boost/filesystem/path.hpp>
-
+#include <unordered_map>
 #include <map>
+#include <list>
 
 namespace particle {
 
@@ -42,14 +42,19 @@ private:
         }
     };
 
+    // Description of a log message
+    struct LogMsg {
+        std::list<gimple> assignIdStmts;
+    };
+
+    typedef std::unordered_map<std::string, LogMsg> LogMsgMap;
+
     std::map<DeclUid, LogFunc> logFuncs_;
     std::unique_ptr<MsgIndex> msgIndex_;
-    boost::filesystem::path srcIndexFile_, destIndexFile_;
 
-    void processFunc(function* fn);
-    void processGimpleStmt(gimple_stmt_iterator gsi);
-
-    MsgIndex* msgIndex();
+    void processFunc(function* fn, LogMsgMap* msgMap);
+    void processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap);
+    void updateMsgIds(const LogMsgMap& msgMap);
 
     static LogFunc makeLogFunc(tree fnDecl, unsigned fmtArgIndex);
 };

@@ -4,21 +4,16 @@
 #include "plugin/gimple.h"
 #include "debug.h"
 
-#include <boost/filesystem.hpp>
+// Uncomment to enable more debugging output
+// #define DEBUG_LOG_PASS(...) DEBUG(__VA_ARGS__)
 
-#define DEBUG_PASS_ENABLED 1
-
-#if DEBUG_PASS_ENABLED
-#define DEBUG_PASS(...) DEBUG(__VA_ARGS__)
-#else
-#define DEBUG_PASS(...)
+#ifndef DEBUG_LOG_PASS
+#define DEBUG_LOG_PASS(...)
 #endif
 
 namespace {
 
 using namespace particle;
-
-namespace fs = boost::filesystem;
 
 const pass_data LOG_PASS_DATA = {
     SIMPLE_IPA_PASS, // type
@@ -37,7 +32,6 @@ const std::string LOG_ATTR_ID_FIELD = "id";
 const std::string LOG_ATTR_HAS_ID_FIELD = "has_id";
 
 // build_component_ref()
-// build_simple_component_ref()
 tree buildComponentRef(tree ref, tree field) {
     assert(ref != NULL_TREE && field != NULL_TREE);
     tree next = TREE_CHAIN(field);
@@ -71,32 +65,38 @@ tree findFieldDecl(tree structType, const std::string& fieldName) {
 
 particle::LogPass::LogPass(gcc::context* ctx, const PluginArgs& args) :
         Pass<BaseType>(LOG_PASS_DATA, ctx) {
-    auto it = args.find("msg-index-src");
+    // Destination index file
+    std::string destIndexFile;
+    auto it = args.find("msg-index");
     if (it != args.end()) {
-        srcIndexFile_ = fs::absolute(it->second.toString());
+        destIndexFile = it->second.toString();
     }
-    it = args.find("msg-index-dest");
-    if (it != args.end()) {
-        destIndexFile_ = fs::absolute(it->second.toString());
+    if (!destIndexFile.empty()) {
+        // Predefined index file (optional)
+        std::string predefIndexFile;
+        it = args.find("msg-index-predef");
+        if (it != args.end()) {
+            predefIndexFile = it->second.toString();
+        }
+        msgIndex_.reset(new MsgIndex(destIndexFile, predefIndexFile));
     }
 }
 
 particle::LogPass::~LogPass() {
 }
 
-unsigned particle::LogPass::execute(function* fn) {
+unsigned particle::LogPass::execute(function*) {
     try {
-        if (fn) {
-            processFunc(fn);
-        } else {
-            // Make an inter-procedural pass
-            cgraph_node *node = nullptr;
-            FOR_EACH_DEFINED_FUNCTION(node) {
-                function* const fn = node->get_fun();
-                assert(fn);
-                processFunc(fn);
-            }
+        // Collect all log messages
+        LogMsgMap msgMap;
+        cgraph_node *node = nullptr;
+        FOR_EACH_DEFINED_FUNCTION(node) {
+            function* const fn = node->get_fun();
+            assert(fn);
+            processFunc(fn, &msgMap);
         }
+        // Update message IDs
+        updateMsgIds(msgMap);
     } catch (const PassError& e) {
         error(e.location(), e.message());
     } catch (const std::exception& e) {
@@ -107,7 +107,7 @@ unsigned particle::LogPass::execute(function* fn) {
 
 bool particle::LogPass::gate(function*) {
     // Run this pass only if there are logging functions declared in current translation unit
-    return (!destIndexFile_.empty() && !logFuncs_.empty());
+    return (msgIndex_ && !logFuncs_.empty());
 }
 
 opt_pass* particle::LogPass::clone() {
@@ -116,12 +116,12 @@ opt_pass* particle::LogPass::clone() {
 
 void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector<Variant> args) {
     if (name != "log_function") {
-        throw Error("Unsupported attribute: %s", name);
+        throw Error("Invalid attribute argument: \"%s\"", name);
     }
     if (TREE_CODE(t) != FUNCTION_DECL) {
         throw Error("This attribute can be applied only to function declarations");
     }
-    DEBUG_PASS("%s: %s: %s()", name, location(t).str(), declName(t));
+    DEBUG_LOG_PASS("%s: %s: %s()", name, location(t).str(), declName(t));
     if (args.size() != 1) {
         throw Error("Invalid number of attribute arguments");
     }
@@ -132,28 +132,28 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
     logFuncs_[DECL_UID(t)] = makeLogFunc(t, fmtArgIndex);
 }
 
-void particle::LogPass::processFunc(function* fn) {
+void particle::LogPass::processFunc(function* fn, LogMsgMap* msgMap) {
     // Iterate over all GIMPLE statements in all basic blocks
-    basic_block bb;
+    basic_block bb = { 0 };
     FOR_ALL_BB_FN(bb, fn) {
         for (gimple_stmt_iterator gsi = gsi_start_bb(bb); !gsi_end_p(gsi); gsi_next(&gsi)) {
-            processGimpleStmt(gsi);
+            processStmt(gsi, msgMap);
         }
     }
 }
 
-void particle::LogPass::processGimpleStmt(gimple_stmt_iterator gsi) {
+void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap) {
     gimple stmt = gsi_stmt(gsi);
     if (!is_gimple_call(stmt)) {
         return; // Not a function call
     }
     // Get declaration of the called function
     tree fnDecl = gimple_call_fndecl(stmt);
-    const auto it = logFuncs_.find(DECL_UID(fnDecl));
-    if (it == logFuncs_.end()) {
+    const auto logFuncIt = logFuncs_.find(DECL_UID(fnDecl));
+    if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
     }
-    const LogFunc& logFunc = it->second;
+    const LogFunc& logFunc = logFuncIt->second;
     const unsigned argCount = gimple_call_num_args(stmt);
     if (logFunc.fmtArgIndex >= argCount || logFunc.attrArgIndex >= argCount) {
         warning(location(stmt), "Unexpected number of arguments");
@@ -168,7 +168,7 @@ void particle::LogPass::processGimpleStmt(gimple_stmt_iterator gsi) {
     if (TREE_CODE(t) != STRING_CST) {
         return; // Not a string constant
     }
-    // tree fmtStr = t;
+    const std::string fmtStr = constStrVal(t); // Format string
     // Get attributes argument
     t = gimple_call_arg(stmt, logFunc.attrArgIndex);
     if (TREE_CODE(t) != ADDR_EXPR || TREE_OPERAND_LENGTH(t) == 0) {
@@ -179,25 +179,36 @@ void particle::LogPass::processGimpleStmt(gimple_stmt_iterator gsi) {
     if (TREE_CODE(t) != VAR_DECL) {
         return;
     }
-    tree varDecl = t;
-    // LogAttributes::id
-    tree lhs = buildComponentRef(varDecl, logFunc.idFieldDecl);
-    tree rhs = build_int_cst(integer_type_node, 777); // FIXME
-    gimple g = gimple_build_assign(lhs, rhs);
-    gsi_insert_before(&gsi, g, GSI_SAME_STMT);
-    // LogAttributes::has_id
-    lhs = buildComponentRef(varDecl, logFunc.hasIdFieldDecl);
+    // Set `LogAttributes::id` field
+    tree lhs = buildComponentRef(t, logFunc.idFieldDecl);
+    tree rhs = build_int_cst(integer_type_node, 0); // Placeholder for a message ID value
+    gimple assignId = gimple_build_assign(lhs, rhs);
+    gsi_insert_before(&gsi, assignId, GSI_SAME_STMT);
+    // Set `LogAttributes::has_id` field
+    lhs = buildComponentRef(t, logFunc.hasIdFieldDecl);
     rhs = build_int_cst(integer_type_node, 1);
-    g = gimple_build_assign(lhs, rhs);
-    gsi_insert_before(&gsi, g, GSI_SAME_STMT);
+    gimple assignHasId = gimple_build_assign(lhs, rhs);
+    gsi_insert_before(&gsi, assignHasId, GSI_SAME_STMT);
+    // Update message map
+    assert(msgMap);
+    auto logMsgIt = msgMap->insert(std::make_pair(fmtStr, LogMsg())).first;
+    logMsgIt->second.assignIdStmts.push_back(assignId);
 }
 
-particle::MsgIndex* particle::LogPass::msgIndex() {
-    // Message index is created on demand
-    if (!msgIndex_) {
-        msgIndex_.reset(new MsgIndex(srcIndexFile_, destIndexFile_));
-    }
-    return msgIndex_.get();
+void particle::LogPass::updateMsgIds(const LogMsgMap& msgMap) {
+    assert(msgIndex_);
+    msgIndex_->process(msgMap,
+        [](const LogMsgMap::const_iterator& it) {
+            return it->first; // Format string
+        },
+        [](const LogMsgMap::const_iterator& it, MsgId id) {
+            // Update log statements with a correct message ID value
+            tree rhs = build_int_cst(integer_type_node, id);
+            for (gimple stmt: it->second.assignIdStmts) {
+                gimple_assign_set_rhs1(stmt, rhs);
+            }
+        }
+    );
 }
 
 particle::LogPass::LogFunc particle::LogPass::makeLogFunc(tree fnDecl, unsigned fmtArgIndex) {

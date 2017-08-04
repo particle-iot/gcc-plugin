@@ -7,73 +7,59 @@
 
 namespace particle {
 
-class JsonReader;
-
-class JsonReaderHandler {
-public:
-    JsonReaderHandler& beginObject(std::function<void()> fn);
-    JsonReaderHandler& endObject(std::function<void()> fn);
-    JsonReaderHandler& beginArray(std::function<void()> fn);
-    JsonReaderHandler& endArray(std::function<void()> fn);
-    JsonReaderHandler& name(std::function<void(std::string)> fn);
-    JsonReaderHandler& value(std::function<void(Variant)> fn);
-
-private:
-    std::function<void()> beginObj_, endObj_, beginArray_, endArray_;
-    std::function<void(std::string)> name_;
-    std::function<void(Variant)> val_;
-
-    friend class JsonReader;
-};
-
 // SAX-alike parser for JSON data
 class JsonReader {
 public:
-    typedef std::basic_istream<char> Stream;
-    typedef JsonReaderHandler Handler;
+    class Handler;
 
-    JsonReader(Stream* strm, Handler handler);
+    explicit JsonReader(std::istream* strm, Handler* handler = nullptr);
 
     void parse();
 
 private:
-    Stream* strm_;
-    Handler handler_;
+    std::istream* strm_;
+    Handler* handler_;
+};
+
+class JsonReader::Handler {
+public:
+    virtual ~Handler() = default;
+
+    virtual void beginObject();
+    virtual void endObject();
+    virtual void beginArray();
+    virtual void endArray();
+    virtual void name(std::string name);
+    virtual void value(Variant val);
 };
 
 } // namespace particle
 
-inline particle::JsonReader::JsonReader(Stream* strm, Handler handler) :
+inline particle::JsonReader::JsonReader(std::istream* strm, Handler* handler) :
         strm_(strm),
-        handler_(std::move(handler)) {
+        handler_(handler) {
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::beginObject(std::function<void()> fn) {
-    beginObj_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::beginObject() {
+    // Default implementation does nothing
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::endObject(std::function<void()> fn) {
-    endObj_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::endObject() {
+    // ditto
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::beginArray(std::function<void()> fn) {
-    beginArray_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::beginArray() {
+    // ditto
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::endArray(std::function<void()> fn) {
-    endArray_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::endArray() {
+    // ditto
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::name(std::function<void(std::string)> fn) {
-    name_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::name(std::string name) {
+    // ditto
 }
 
-inline particle::JsonReaderHandler& particle::JsonReaderHandler::value(std::function<void(Variant)> fn) {
-    val_ = std::move(fn);
-    return *this;
+inline void particle::JsonReader::Handler::value(Variant val) {
+    // ditto
 }

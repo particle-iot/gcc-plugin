@@ -20,6 +20,7 @@ public:
     Variant(bool val);
     Variant(int val);
     Variant(double val);
+    Variant(const char* str);
     Variant(std::string str);
 
     bool toBool() const;
@@ -55,6 +56,10 @@ inline particle::Variant::Variant(int val) :
 
 inline particle::Variant::Variant(double val) :
         val_(val) {
+}
+
+inline particle::Variant::Variant(const char* str) :
+        val_(std::string(str)) {
 }
 
 inline particle::Variant::Variant(std::string str) :

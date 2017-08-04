@@ -22,8 +22,8 @@ void particle::Plugin::init() {
             .handler(std::bind(&Plugin::attrHandler, this, _1, _2)));
     // Register compiler passes
     logPass_.reset(new LogPass(gccContext(), pluginArgs()));
-    // The '*free_lang_data' pass is executed once, immediately after '*build_cgraph_edges', which is the
-    // pass that builds the callgraph
+    // The '*free_lang_data' pass is executed immediately after '*build_cgraph_edges', which is the pass
+    // that builds the callgraph
     registerPass(logPass_.get(), PassRegInfo()
             .runBefore("*free_lang_data")
             .refPassInstanceNum(1)); // Just in case
@@ -37,6 +37,6 @@ void particle::Plugin::attrHandler(tree t, std::vector<Variant> args) {
     if (boost::starts_with(name, "log_")) {
         logPass_->attrHandler(t, name, std::move(args));
     } else {
-        throw Error("Invalid attribute argument: %s", name);
+        throw Error("Invalid attribute argument: \"%s\"", name);
     }
 }
