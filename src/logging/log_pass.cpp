@@ -5,7 +5,6 @@
 #include "debug.h"
 
 #include <boost/filesystem.hpp>
-#include <boost/optional.hpp>
 
 #define DEBUG_PASS_ENABLED 1
 
@@ -201,14 +200,17 @@ particle::MsgIndex* particle::LogPass::msgIndex() {
     return msgIndex_.get();
 }
 
-particle::LogPass::LogFunc particle::LogPass::makeLogFunc(const_tree fnDecl, unsigned fmtArgIndex) {
-    boost::optional<LogFunc> logFunc;
-    unsigned argCount = 0;
+particle::LogPass::LogFunc particle::LogPass::makeLogFunc(tree fnDecl, unsigned fmtArgIndex) {
+    const Location loc = location(fnDecl);
+    tree fmtType = NULL_TREE, attrType = NULL_TREE;
+    unsigned attrArgIndex = 0, argCount = 0;
     for (tree arg = TYPE_ARG_TYPES(TREE_TYPE(fnDecl)); arg != NULL_TREE; arg = TREE_CHAIN(arg), ++argCount) {
-        if (logFunc) {
-            continue; // Keep counting function arguments
-        }
         tree t = TREE_VALUE(arg);
+        if (fmtType == NULL_TREE && argCount == fmtArgIndex) {
+            // Format string argument
+            fmtType = t;
+            continue;
+        }
         if (TREE_CODE(t) != POINTER_TYPE) {
             continue; // Not a pointer type
         }
@@ -219,23 +221,36 @@ particle::LogPass::LogFunc particle::LogPass::makeLogFunc(const_tree fnDecl, uns
         if (typeName(t) != LOG_ATTR_STRUCT) {
             continue;
         }
-        if (!COMPLETE_TYPE_P(t)) {
-            throw Error("`%s` is an incomplete type", LOG_ATTR_STRUCT);
+        if (attrType == NULL_TREE) {
+            // Attributes argument
+            attrType = t;
+            attrArgIndex = argCount;
+        } else {
+            throw PassError(loc, "Logging function takes multiple `%s*` arguments", LOG_ATTR_STRUCT);
         }
-        logFunc = LogFunc();
-        logFunc->fmtArgIndex = fmtArgIndex;
-        logFunc->attrArgIndex = argCount;
-        logFunc->idFieldDecl = findFieldDecl(t, LOG_ATTR_ID_FIELD);
-        logFunc->hasIdFieldDecl = findFieldDecl(t, LOG_ATTR_HAS_ID_FIELD);
     }
-    if (!logFunc) {
-        throw Error("Logging function is expected to take `struct %s*` argument", LOG_ATTR_STRUCT);
+    if (fmtType == NULL_TREE) {
+        throw PassError(loc, "Invalid index of the format string argument");
     }
-    if (logFunc->idFieldDecl == NULL_TREE || logFunc->hasIdFieldDecl == NULL_TREE) {
-        throw Error("`struct %s` is missing required fields", LOG_ATTR_STRUCT);
+    if (!isConstCharPtr(fmtType)) {
+        throw PassError(loc, "Format string argument is not a `const char*` string");
     }
-    if (logFunc->fmtArgIndex >= argCount) {
-        throw Error("Invalid index of the format string argument");
+    if (attrType == NULL_TREE) {
+        throw PassError(loc, "Logging function is expected to take `%s*` argument", LOG_ATTR_STRUCT);
     }
-    return *logFunc;
+    if (!COMPLETE_TYPE_P(attrType)) {
+        throw PassError(loc, "`%s` is an incomplete type", LOG_ATTR_STRUCT);
+    }
+    LogFunc logFunc;
+    logFunc.fmtArgIndex = fmtArgIndex;
+    logFunc.attrArgIndex = attrArgIndex;
+    logFunc.idFieldDecl = findFieldDecl(attrType, LOG_ATTR_ID_FIELD);
+    if (logFunc.idFieldDecl == NULL_TREE) {
+        throw PassError(loc, "`%s` is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_ID_FIELD);
+    }
+    logFunc.hasIdFieldDecl = findFieldDecl(attrType, LOG_ATTR_HAS_ID_FIELD);
+    if (logFunc.hasIdFieldDecl == NULL_TREE) {
+        throw PassError(loc, "`%s` is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_HAS_ID_FIELD);
+    }
+    return logFunc;
 }

@@ -102,3 +102,10 @@ std::string particle::declName(const_tree t) {
 std::string particle::typeName(const_tree t) {
     return IDENTIFIER_POINTER(TYPE_IDENTIFIER(t));
 }
+
+bool particle::isConstCharPtr(const_tree t) {
+    if (!POINTER_TYPE_P(t)) {
+        return false; // Not a pointer type
+    }
+    return TYPE_STRING_FLAG(TREE_TYPE(t));
+}

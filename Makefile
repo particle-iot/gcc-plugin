@@ -1,7 +1,7 @@
 TARGET = particle_plugin
 TARGET_TYPE = lib-shared
 
-# Don't add 'lib' prefix to the plugin's target file
+# Don't add default 'lib' prefix to the plugin's target file
 PREFIX_LIB =
 
 SRC = src/logging/log_pass.cpp \

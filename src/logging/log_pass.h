@@ -36,6 +36,7 @@ private:
 
         LogFunc() :
                 idFieldDecl(NULL_TREE),
+                hasIdFieldDecl(NULL_TREE),
                 fmtArgIndex(0),
                 attrArgIndex(0) {
         }
@@ -50,7 +51,7 @@ private:
 
     MsgIndex* msgIndex();
 
-    static LogFunc makeLogFunc(const_tree fnDecl, unsigned fmtArgIndex);
+    static LogFunc makeLogFunc(tree fnDecl, unsigned fmtArgIndex);
 };
 
 } // namespace particle

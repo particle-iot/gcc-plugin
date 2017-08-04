@@ -31,4 +31,6 @@ Location location(const_tree t);
 std::string declName(const_tree t);
 std::string typeName(const_tree t);
 
+bool isConstCharPtr(const_tree t);
+
 } // namespace particle
