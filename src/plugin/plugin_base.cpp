@@ -15,8 +15,8 @@ using namespace particle;
 
 PluginBase* g_instance = nullptr; // Plugin instance
 
-PluginBase::Args parsePluginArgs(const plugin_name_args* args) {
-    PluginBase::Args argMap;
+PluginArgs parsePluginArgs(const plugin_name_args* args) {
+    PluginArgs argMap;
     for (int i = 0; i < args->argc; ++i) {
         const plugin_argument& arg = args->argv[i];
         assert(arg.key);
@@ -43,12 +43,12 @@ void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *vers
     }
     // Parse plugin arguments
     assert(args && args->base_name);
-    name_ = args->base_name;
-    args_ = parsePluginArgs(args);
+    pluginName_ = args->base_name;
+    pluginArgs_ = parsePluginArgs(args);
     // Initialize plugin
     this->init();
     // Register callbacks
-    register_callback(name_.data(), PLUGIN_ATTRIBUTES, registerAttrs, this);
+    register_callback(pluginName_.data(), PLUGIN_ATTRIBUTES, registerAttrs, this);
 }
 
 particle::PluginBase* particle::PluginBase::instance() {
@@ -64,7 +64,7 @@ void particle::PluginBase::registerPass(opt_pass* pass, const PassRegInfo& info)
     p.reference_pass_name = info.refPassName().data();
     p.ref_pass_instance_number = info.refPassInstanceNum();
     p.pos_op = info.pos();
-    register_callback(name_.data(), PLUGIN_PASS_MANAGER_SETUP, nullptr, &p);
+    register_callback(pluginName_.data(), PLUGIN_PASS_MANAGER_SETUP, nullptr, &p);
 }
 
 void particle::PluginBase::registerAttr(const AttrSpec& attr) {
@@ -89,6 +89,10 @@ void particle::PluginBase::registerAttr(const AttrSpec& attr) {
 void particle::PluginBase::defineMacro(const std::string& name) {
     // TODO: Handle duplicate definitions?
     macros_.push_back(name);
+}
+
+gcc::context* particle::PluginBase::gccContext() {
+    return g; // Defined in context.h
 }
 
 void particle::PluginBase::registerAttrs(void *gccData, void *userData) {

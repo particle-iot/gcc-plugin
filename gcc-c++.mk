@@ -27,11 +27,11 @@ STRIP = strip
 STRIP_FLAGS += --strip-debug --strip-unneeded
 
 # Naming conventions
-SUFFIX_BIN =
-SUFFIX_LIB_SHARED = .so
-SUFFIX_LIB_STATIC = .a
-SUFFIX_DEBUG = .debug
-PREFIX_LIB = lib
+SUFFIX_BIN ?=
+SUFFIX_LIB_SHARED ?= .so
+SUFFIX_LIB_STATIC ?= .a
+SUFFIX_DEBUG ?= .debug
+PREFIX_LIB ?= lib
 
 # Target name and type (bin, lib, lib-shared, lib-static)
 TARGET ?= unnamed

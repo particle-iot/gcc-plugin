@@ -11,6 +11,8 @@ namespace particle {
 template<typename T>
 class Pass: public T {
 public:
+    typedef T BaseType;
+
     template<typename... ArgsT>
     explicit Pass(ArgsT&&... args);
 

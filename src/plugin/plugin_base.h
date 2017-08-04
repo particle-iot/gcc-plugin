@@ -17,19 +17,20 @@
 
 namespace particle {
 
+// Plugin arguments
+typedef std::map<std::string, Variant> PluginArgs;
+
 // Base class for GCC plugins
 class PluginBase {
 public:
-    typedef std::map<std::string, Variant> Args; // Plugin arguments
-
     PluginBase();
     virtual ~PluginBase();
 
     // Returns plugin name
-    const std::string& name() const;
+    const std::string& pluginName() const;
 
     // Returns plugin arguments
-    const Args& args() const;
+    const PluginArgs& pluginArgs() const;
 
     // Produces fatal compiler error
     static void error(const std::string& msg);
@@ -57,6 +58,9 @@ protected:
     template<typename T>
     void defineMacro(const std::string& name, const T& val);
 
+    // Returns global GCC context instance
+    static gcc::context* gccContext();
+
 private:
     struct AttrSpecData {
         attribute_spec gcc;
@@ -66,8 +70,8 @@ private:
     std::map<std::string, AttrSpecData> attrSpecs_;
     std::vector<std::string> macros_;
 
-    std::string name_; // Plugin name
-    Args args_; // Plugin arguments
+    std::string pluginName_;
+    PluginArgs pluginArgs_;
 
     // Plugin callbacks
     static void registerAttrs(void* gccData, void* userData); // event: PLUGIN_ATTRIBUTES
@@ -79,12 +83,12 @@ int initPlugin(plugin_name_args *args, plugin_gcc_version *version);
 
 } // namespace particle
 
-inline const std::string& particle::PluginBase::name() const {
-    return name_;
+inline const std::string& particle::PluginBase::pluginName() const {
+    return pluginName_;
 }
 
-inline const particle::PluginBase::Args& particle::PluginBase::args() const {
-    return args_;
+inline const particle::PluginArgs& particle::PluginBase::pluginArgs() const {
+    return pluginArgs_;
 }
 
 inline void particle::PluginBase::error(const std::string& msg) {

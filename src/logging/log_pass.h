@@ -1,42 +1,56 @@
 #pragma once
 
+#include "plugin/plugin_base.h"
 #include "plugin/pass.h"
 #include "plugin/tree.h"
 #include "plugin/gcc.h"
 #include "util/variant.h"
 #include "common.h"
 
+#include <boost/filesystem/path.hpp>
+
 #include <map>
 
 namespace particle {
 
-class LogPass: public Pass<gimple_opt_pass> {
-public:
-    explicit LogPass(gcc::context* ctx);
+class MsgIndex;
 
-    // gimple_opt_pass
+class LogPass: public Pass<simple_ipa_opt_pass> {
+public:
+    LogPass(gcc::context* ctx, const PluginArgs& args);
+    virtual ~LogPass();
+
+    // opt_pass
     virtual unsigned execute(function* fn) override;
     virtual bool gate(function* fn) override;
     virtual opt_pass* clone() override;
 
+    // Called by the Plugin instance
     void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
 private:
     // Description of a logging function
-    struct LogFuncInfo {
+    struct LogFunc {
         tree idFieldDecl, hasIdFieldDecl;
         unsigned fmtArgIndex, attrArgIndex;
 
-        LogFuncInfo() :
+        LogFunc() :
                 idFieldDecl(NULL_TREE),
                 fmtArgIndex(0),
                 attrArgIndex(0) {
         }
     };
 
-    std::map<DeclUid, LogFuncInfo> logFuncs_;
+    std::map<DeclUid, LogFunc> logFuncs_;
+    std::unique_ptr<MsgIndex> msgIndex_;
+    boost::filesystem::path srcIndexFile_, destIndexFile_;
 
-    static LogFuncInfo logFuncInfo(const_tree fnDecl, unsigned fmtArgIndex);
+    void processFunc(function* fn);
+    void processGimpleStmt(gimple_stmt_iterator gsi);
+
+    MsgIndex* msgIndex();
+
+    static LogFunc makeLogFunc(const_tree fnDecl, unsigned fmtArgIndex);
 };
 
 } // namespace particle

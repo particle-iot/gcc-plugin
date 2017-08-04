@@ -11,6 +11,7 @@
 #include <gimple.h>
 #include <gimple-iterator.h>
 #include <tree-pass.h>
+#include <cgraph.h>
 #include <context.h>
 #include <plugin-version.h>
 
