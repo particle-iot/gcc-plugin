@@ -3,7 +3,13 @@
 #include "common.h"
 
 #include <gcc-plugin.h>
-#include <cp/cp-tree.h>
+#include <plugin-version.h>
+
+#if GCCPLUGIN_VERSION < 5003
+#error "GCC Plugin API >= 5.3.x is required to compile this code"
+#endif
+
+#include <tree.h>
 #include <c-family/c-pragma.h> // For parse_in
 #include <basic-block.h>
 #include <tree-ssa-alias.h>
@@ -13,7 +19,7 @@
 #include <tree-pass.h>
 #include <cgraph.h>
 #include <context.h>
-#include <plugin-version.h>
+#include <diagnostic.h>
 
 #ifndef NDEBUG
 
