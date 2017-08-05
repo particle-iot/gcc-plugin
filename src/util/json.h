@@ -3,7 +3,7 @@
 #include "util/variant.h"
 #include "common.h"
 
-#include <istream>
+#include <iostream>
 
 namespace particle {
 
@@ -25,6 +25,25 @@ public:
     virtual void endArray();
     virtual void name(std::string name);
     virtual void value(Variant val);
+};
+
+class JsonWriter {
+public:
+    explicit JsonWriter(std::ostream* strm);
+    ~JsonWriter();
+
+    JsonWriter& beginObject();
+    JsonWriter& endObject();
+    JsonWriter& beginArray();
+    JsonWriter& endArray();
+    JsonWriter& name(const std::string& name);
+    JsonWriter& value(const Variant& val);
+    JsonWriter& nullValue(); // Equivalent to value(Variant())
+
+private:
+    struct Data;
+
+    std::unique_ptr<Data> d_;
 };
 
 } // namespace particle

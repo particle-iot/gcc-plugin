@@ -165,10 +165,9 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
     }
     // Open destination index file
     DEBUG("Opening index file: %s", destIndexFile_);
-    std::fstream destStrm(destIndexFile_, std::ios_base::in | std::ios_base::out | std::ios_base::app);
-    if (!destStrm.is_open()) {
-        throw Error("Unable to open file: %s", destIndexFile_);
-    }
+    std::fstream destStrm;
+    destStrm.exceptions(std::ios_base::failbit | std::ios_base::badbit); // Enable exceptions
+    destStrm.open(destIndexFile_, std::ios_base::in | std::ios_base::out | std::ios_base::app);
     // TODO: Acquire a sharable lock first
     ipc::file_lock fileLock(destIndexFile_.data());
     const std::lock_guard<ipc::file_lock> lock(fileLock);
