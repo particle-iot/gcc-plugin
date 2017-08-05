@@ -62,7 +62,7 @@ inline void particle::Pass<T>::error(Location loc, const std::string& fmt, ArgsT
 template<typename T>
 template<typename... ArgsT>
 inline void particle::Pass<T>::error(const std::string& fmt, ArgsT&&... args) {
-    ::error("%s", format(fmt, std::forward<ArgsT>(args)...).data());
+    error(Location(), fmt, std::forward<ArgsT>(args)...); // Unknown location
 }
 
 template<typename... ArgsT>

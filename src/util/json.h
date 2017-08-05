@@ -12,13 +12,7 @@ class JsonReader {
 public:
     class Handler;
 
-    explicit JsonReader(std::istream* strm, Handler* handler = nullptr);
-
-    void parse();
-
-private:
-    std::istream* strm_;
-    Handler* handler_;
+    void parse(std::istream* strm, Handler* handler);
 };
 
 class JsonReader::Handler {
@@ -34,11 +28,6 @@ public:
 };
 
 } // namespace particle
-
-inline particle::JsonReader::JsonReader(std::istream* strm, Handler* handler) :
-        strm_(strm),
-        handler_(handler) {
-}
 
 inline void particle::JsonReader::Handler::beginObject() {
     // Default implementation does nothing

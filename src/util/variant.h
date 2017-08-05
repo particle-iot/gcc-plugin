@@ -19,6 +19,7 @@ public:
     Variant();
     Variant(bool val);
     Variant(int val);
+    Variant(unsigned val);
     Variant(double val);
     Variant(const char* str);
     Variant(std::string str);
@@ -52,6 +53,10 @@ inline particle::Variant::Variant(bool val) :
 
 inline particle::Variant::Variant(int val) :
         val_(val) {
+}
+
+inline particle::Variant::Variant(unsigned val) :
+        val_((int)val) {
 }
 
 inline particle::Variant::Variant(double val) :

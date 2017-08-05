@@ -31,18 +31,21 @@ const std::string LOG_ATTR_STRUCT = "LogAttributes";
 const std::string LOG_ATTR_ID_FIELD = "id";
 const std::string LOG_ATTR_HAS_ID_FIELD = "has_id";
 
-// build_component_ref()
+// Returns reference (a COMPONENT_REF node) to a structure's field, which may be nested in a number of
+// anonymous struct/union fields. GCC already provides build_component_ref() function that does the
+// job, but unfortunately it's only available for C code at runtime
 tree buildComponentRef(tree ref, tree field) {
     assert(ref != NULL_TREE && field != NULL_TREE);
     tree next = TREE_CHAIN(field);
     field = TREE_VALUE(field);
-    tree t = build3_loc(UNKNOWN_LOCATION, COMPONENT_REF, TREE_TYPE(field), ref, field, NULL_TREE);
+    ref = build3_loc(UNKNOWN_LOCATION, COMPONENT_REF, TREE_TYPE(field), ref, field, NULL_TREE);
     if (next != NULL_TREE) {
-        t = buildComponentRef(t, next);
+        ref = buildComponentRef(ref, next);
     }
-    return t;
+    return ref;
 }
 
+// Returns field declaration for given structure type and field name
 tree findFieldDecl(tree structType, const std::string& fieldName) {
     for (tree field = TYPE_FIELDS(structType); field != NULL_TREE; field = TREE_CHAIN(field)) {
         tree name = DECL_NAME(field);
@@ -100,7 +103,8 @@ unsigned particle::LogPass::execute(function*) {
     } catch (const PassError& e) {
         error(e.location(), e.message());
     } catch (const std::exception& e) {
-        error(e.what());
+        // Include plugin name for better readability
+        error("%s: %s", PluginBase::instance()->pluginName(), e.what());
     }
     return 0; // No additional TODOs
 }
