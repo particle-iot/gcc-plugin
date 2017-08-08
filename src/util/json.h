@@ -12,7 +12,15 @@ class JsonReader {
 public:
     class Handler;
 
-    void parse(std::istream* strm, Handler* handler);
+    JsonReader(std::istream* strm, Handler* handler);
+    ~JsonReader();
+
+    void parse();
+
+private:
+    struct Data;
+
+    std::unique_ptr<Data> d_;
 };
 
 class JsonReader::Handler {

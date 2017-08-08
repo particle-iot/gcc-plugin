@@ -13,7 +13,7 @@ const MsgId INVALID_MSG_ID = 0;
 
 class MsgIndex {
 public:
-    explicit MsgIndex(const std::string& destIndexFile, const std::string& predefIndexFile = std::string());
+    explicit MsgIndex(const std::string& destFile, const std::string& predefFile = std::string());
 
     template<typename IterT, typename MsgStrT, typename AssignIdT>
     void process(IterT begin, IterT end, MsgStrT msgStr, AssignIdT assignId, size_t sizeHint = 0);
@@ -35,12 +35,14 @@ private:
     typedef std::unordered_map<std::string, Msg> MsgMap;
 
     class IndexReader;
+    class IndexWriter;
 
-    std::string destIndexFile_, predefIndexFile_;
+    std::string destFile_, predefFile_;
 
     void process(MsgMap* msgMap);
 
     friend class IndexReader;
+    friend class IndexWriter;
 };
 
 } // namespace particle

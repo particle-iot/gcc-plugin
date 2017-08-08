@@ -89,19 +89,16 @@ private:
 
 } // namespace
 
-void particle::JsonReader::parse(std::istream* strm, Handler* handler) {
-    HandlerAdapter h(handler); // Wrapper for JsonReader::Handler instance
-    json::IStreamWrapper s(*strm); // Wrapper for std::istream instance
+struct particle::JsonReader::Data {
+    json::IStreamWrapper strm;
     json::GenericReader<json::UTF8<>, json::UTF8<>> reader;
-    constexpr unsigned flags = json::kParseCommentsFlag; // Allow comments
-    const json::ParseResult r = reader.Parse<flags>(s, h);
-    if (!r) {
-        const auto code = r.Code();
-        if (code != json::kParseErrorDocumentEmpty) { // Empty document is not an error
-            throw Error("Unable to parse JSON: %s", json::GetParseError_En(code));
-        }
+    HandlerAdapter handler;
+
+    Data(std::istream* strm, JsonReader::Handler* handler) :
+            strm(*strm),
+            handler(handler) {
     }
-}
+};
 
 struct particle::JsonWriter::Data {
     json::OStreamWrapper strm;
@@ -112,6 +109,24 @@ struct particle::JsonWriter::Data {
             writer(strm) {
     }
 };
+
+particle::JsonReader::JsonReader(std::istream* strm, Handler* handler) :
+        d_(new Data(strm, handler)) {
+}
+
+particle::JsonReader::~JsonReader() {
+}
+
+void particle::JsonReader::parse() {
+    constexpr unsigned flags = json::kParseCommentsFlag; // Allow comments
+    const json::ParseResult r = d_->reader.Parse<flags>(d_->strm, d_->handler);
+    if (!r) {
+        const auto code = r.Code();
+        if (code != json::kParseErrorDocumentEmpty) { // Empty document is not an error
+            throw Error("Unable to parse JSON: %s", json::GetParseError_En(code));
+        }
+    }
+}
 
 particle::JsonWriter::JsonWriter(std::ostream* strm) :
         d_(new Data(strm)) {

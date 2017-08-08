@@ -125,7 +125,7 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
     if (TREE_CODE(t) != FUNCTION_DECL) {
         throw Error("This attribute can be applied only to function declarations");
     }
-    DEBUG_LOG_PASS("%s: %s: %s()", name, location(t).str(), declName(t));
+    DEBUG_LOG_PASS("%s: Logging function: %s()", location(t).str(), declName(t));
     if (args.size() != 1) {
         throw Error("Invalid number of attribute arguments");
     }
@@ -183,6 +183,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap)
     if (TREE_CODE(t) != VAR_DECL) {
         return;
     }
+    DEBUG_LOG_PASS("%s: Log message: \"%s\"", location(stmt).str(), fmtStr);
     // Set `LogAttributes::id` field
     tree lhs = buildComponentRef(t, logFunc.idFieldDecl);
     tree rhs = build_int_cst(integer_type_node, 0); // Placeholder for a message ID value
@@ -195,8 +196,8 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap)
     gsi_insert_before(&gsi, assignHasId, GSI_SAME_STMT);
     // Update message map
     assert(msgMap);
-    auto logMsgIt = msgMap->insert(std::make_pair(fmtStr, LogMsg())).first;
-    logMsgIt->second.assignIdStmts.push_back(assignId);
+    auto msgIt = msgMap->insert(std::make_pair(fmtStr, LogMsg())).first;
+    msgIt->second.assignIdStmts.push_back(assignId);
 }
 
 void particle::LogPass::updateMsgIds(const LogMsgMap& msgMap) {
