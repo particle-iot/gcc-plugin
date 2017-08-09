@@ -1,5 +1,5 @@
 TARGET = particle_plugin
-TARGET_TYPE = lib-shared
+TARGET_TYPE = shared-lib
 
 # Don't add default 'lib' prefix to the plugin's target file
 PREFIX_LIB =
@@ -22,11 +22,15 @@ DEFINE = ENABLE_TREE_CHECKING
 LIB = boost_system \
   boost_filesystem
 
-# Path to GCC plugin header files
-GCC_PLUGIN_PATH ?= $(shell $(CXX) -print-file-name=plugin)
-CXX_FLAGS += -isystem $(GCC_PLUGIN_PATH)/include
-
 # GCC requires RTTI disabled for plugins
 CXX_FLAGS += -fno-rtti
+
+# Path to GCC plugin header files
+GCC_PLUGIN_INCLUDE_PATH ?= $(shell $(CXX) -print-file-name=plugin)/include
+CXX_FLAGS += -isystem $(GCC_PLUGIN_INCLUDE_PATH)
+
+# Other dependencies
+INCLUDE_PATH += $(BOOST_INCLUDE_PATH) $(RAPIDJSON_INCLUDE_PATH)
+LIB_PATH += $(BOOST_LIB_PATH)
 
 include gcc-c++.mk
