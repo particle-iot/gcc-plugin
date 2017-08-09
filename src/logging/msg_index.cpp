@@ -31,13 +31,6 @@
 #include <unordered_set>
 #include <cctype>
 
-// Uncomment to enable more debugging output
-// #define DEBUG_MSG_INDEX(...) DEBUG(__VA_ARGS__)
-
-#ifndef DEBUG_MSG_INDEX
-#define DEBUG_MSG_INDEX(...)
-#endif
-
 namespace {
 
 using namespace particle;
@@ -114,7 +107,7 @@ public:
                     msg.id = *msgId_;
                     assert(msg.type == MsgType::NEW);
                     msg.type = msgType_;
-                    DEBUG_MSG_INDEX("Found message: \"%s\", ID: %u", it->first, msg.id);
+                    DEBUG("Found message: \"%s\", ID: %u", it->first, msg.id);
                 } else if (msg.id != *msgId_) {
                     throw Error("Conflicting message description, ID: %u", *msgId_);
                 }
@@ -251,7 +244,7 @@ public:
             if (!msgTypeMask_ || (msg.type & msgTypeMask_)) {
                 if (msg.id == INVALID_MSG_ID) {
                     msg.id = ++maxMsgId_;
-                    DEBUG_MSG_INDEX("New message: \"%s\", ID: %u", it->first, msg.id);
+                    DEBUG("New message: \"%s\", ID: %u", it->first, msg.id);
                 }
                 writer_.beginObject();
                 writer_.name(JSON_MSG_TEXT_ATTR).value(it->first);
@@ -292,7 +285,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
         return;
     }
     // Process current index file
-    DEBUG_MSG_INDEX("Opening index file: %s", curFile_);
+    DEBUG("Opening index file: %s", curFile_);
     std::fstream curStrm;
     curStrm.exceptions(std::ios::badbit); // Enable exceptions
     curStrm.open(curFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
@@ -310,7 +303,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     MsgId maxMsgId = curReader.maxMsgId();
     if (!predefFile_.empty()) {
         // Process predefined index file
-        DEBUG_MSG_INDEX("Opening index file: %s", predefFile_);
+        DEBUG("Opening index file: %s", predefFile_);
         std::ifstream predefStrm;
         predefStrm.exceptions(std::ios::badbit); // Enable exceptions
         predefStrm.open(predefFile_, std::ios::in | std::ios::binary);

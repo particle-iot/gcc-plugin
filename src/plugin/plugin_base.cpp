@@ -55,6 +55,8 @@ particle::PluginBase::~PluginBase() {
 
 void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *version) {
     // Check version of the host compiler
+    assert(version && version->basever);
+    DEBUG("GCC version: %s", version->basever);
     if (!plugin_default_version_check(version, &gcc_version /* Defined in plugin-version.h */)) {
         throw Error("This plugin is built for GCC %s", gcc_version.basever);
     }
@@ -63,8 +65,10 @@ void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *vers
     pluginName_ = args->base_name;
     pluginArgs_ = parsePluginArgs(args);
     // Initialize plugin
+    DEBUG("Initializing plugin");
     this->init();
     // Register callbacks
+    register_callback(pluginName_.data(), PLUGIN_START_UNIT, startUnit, this);
     register_callback(pluginName_.data(), PLUGIN_ATTRIBUTES, registerAttrs, this);
 }
 
@@ -76,12 +80,14 @@ void particle::PluginBase::registerPass(opt_pass* pass, const PassRegInfo& info)
     if (info.refPassName().empty()) {
         throw Error("Invalid pass info");
     }
+    assert(pass && pass->name);
     register_pass_info p = { 0 };
     p.pass = pass;
     p.reference_pass_name = info.refPassName().data();
     p.ref_pass_instance_number = info.refPassInstanceNum();
     p.pos_op = info.pos();
     register_callback(pluginName_.data(), PLUGIN_PASS_MANAGER_SETUP, nullptr, &p);
+    DEBUG("Registered pass: %s", pass->name);
 }
 
 void particle::PluginBase::registerAttr(const AttrSpec& attr) {
@@ -112,20 +118,32 @@ gcc::context* particle::PluginBase::gccContext() {
     return g; // Defined in context.h
 }
 
-void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
+void particle::PluginBase::startUnit(void *gccData, void *userData) {
     try {
-        PluginBase* const p = static_cast<PluginBase*>(userData);
-        // Register plugin attributes
-        for (const auto& pair: p->attrSpecs_) {
-            // TODO: Register C++11 attribute as well
-            register_attribute(&pair.second.gcc);
-        }
         // Define plugin macros
+        PluginBase* const p = static_cast<PluginBase*>(userData);
         assert(p->macros_.empty() || parse_in);
         for (const std::string& macro: p->macros_) {
             cpp_define(parse_in, macro.data());
+            DEBUG("Defined macro: %s", macro);
         }
         p->macros_.clear(); // Not needed anymore
+    } catch (const std::exception& e) {
+        error(e.what());
+    }
+}
+
+void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
+    try {
+        // Register plugin attributes
+        PluginBase* const p = static_cast<PluginBase*>(userData);
+        for (const auto& pair: p->attrSpecs_) {
+            // TODO: Register C++11 attribute as well
+            const attribute_spec& attr = pair.second.gcc;
+            register_attribute(&attr);
+            assert(attr.name);
+            DEBUG("Registered attribute: %s", attr.name);
+        }
     } catch (const std::exception& e) {
         error(e.what());
     }

@@ -24,13 +24,6 @@
 
 #include <boost/algorithm/string/join.hpp>
 
-// Uncomment to enable more debugging output
-// #define DEBUG_LOG_PASS(...) DEBUG(__VA_ARGS__)
-
-#ifndef DEBUG_LOG_PASS
-#define DEBUG_LOG_PASS(...)
-#endif
-
 namespace {
 
 using namespace particle;
@@ -148,7 +141,7 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
     if (TREE_CODE(t) != FUNCTION_DECL) {
         throw Error("This attribute can be applied only to function declarations");
     }
-    DEBUG_LOG_PASS("%s: Logging function: %s()", location(t).str(), declName(t));
+    DEBUG("%s: Logging function: %s()", location(t).str(), declName(t));
     if (args.size() != 1) {
         throw Error("Invalid number of attribute arguments");
     }
@@ -216,10 +209,10 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         return;
     }
     if (fmtParser.dynSpec()) {
-        DEBUG_LOG_PASS("Skipping message with dynamic format specifiers: \"%s\"", fmtStr);
+        DEBUG("Skipping message with dynamic format specifiers: \"%s\"", fmtStr);
         return;
     }
-    DEBUG_LOG_PASS("%s: Log message: \"%s\" -> %s", location(stmt).str(), fmtStr,
+    DEBUG("%s: Log message: \"%s\" -> %s", location(stmt).str(), fmtStr,
             fmtParser.specs().empty() ? "NULL" : format("\"%s\"", boost::join(fmtParser.specs(), " ")));
     const std::string fmtSpecStr = boost::join(fmtParser.specs(), FMT_SPEC_SEP);
     if (!fmtSpecStr.empty()) {

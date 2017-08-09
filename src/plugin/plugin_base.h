@@ -91,7 +91,9 @@ private:
     PluginArgs pluginArgs_;
 
     // Plugin callbacks
+    static void startUnit(void* gccData, void* userData); // event: PLUGIN_START_UNIT
     static void registerAttrs(void* gccData, void* userData); // event: PLUGIN_ATTRIBUTES
+
     static tree attrHandler(tree* node, tree name, tree args, int flags, bool* noAddAttrs);
 };
 
