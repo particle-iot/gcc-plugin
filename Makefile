@@ -33,4 +33,10 @@ CXX_FLAGS += -isystem $(GCC_PLUGIN_INCLUDE_PATH)
 INCLUDE_PATH += $(BOOST_INCLUDE_PATH) $(RAPIDJSON_INCLUDE_PATH)
 LIB_PATH += $(BOOST_LIB_PATH)
 
+# Ignore undefined symbols (macOS)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  LD_FLAGS += -Wl,-flat_namespace -Wl,-undefined,suppress
+endif
+
 include gcc-c++.mk

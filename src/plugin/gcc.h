@@ -21,7 +21,10 @@
 
 // GCC 5.4.x: Including this header helps to avoid some weird global name conflicts when the
 // plugin API is used in C++ code
-#include <ios>
+#include <locale>
+
+// Pretend that this is a Bison parser to avoid poisoning of the malloc() function
+#define YYBISON 1
 
 #include <gcc-plugin.h>
 #include <plugin-version.h>
