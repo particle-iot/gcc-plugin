@@ -6,6 +6,7 @@ PREFIX_LIB =
 
 SRC = src/logging/log_pass.cpp \
   src/logging/msg_index.cpp \
+  src/logging/fmt_parser.cpp \
   src/plugin/plugin_base.cpp \
   src/plugin/gimple.cpp \
   src/plugin/tree.cpp \

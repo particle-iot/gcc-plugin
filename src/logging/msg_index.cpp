@@ -12,6 +12,7 @@
 #include <sstream>
 #include <mutex>
 #include <unordered_set>
+#include <cctype>
 
 // Uncomment to enable more debugging output
 // #define DEBUG_MSG_INDEX(...) DEBUG(__VA_ARGS__)
@@ -35,10 +36,11 @@ const unsigned JSON_MSG_OBJ_LEVEL = 2;
 // Concatenates two serialized non-empty JSON arrays with message descriptions
 void appendJsonIndex(std::ostream* strm, const std::string& json) {
     auto p = json.find('{');
-    assert(p != std::string::npos && p > 0);
-    const auto p2 = json.rfind('\n', p - 1); // Preserve indentation
-    if (p2 != std::string::npos) {
-        p = p2 + 1;
+    assert(p != std::string::npos && p > 0); // Message objects are always nested in an array
+    char c = 0;
+    while ((c = json.at(p - 1)) != '\n' && std::isspace(c)) { // Preserve indentation
+        assert(p > 0);
+        --p;
     }
     strm->write(",\n", 2);
     strm->write(json.data() + p, json.size() - p);
@@ -213,10 +215,10 @@ private:
 
 class particle::MsgIndex::IndexWriter {
 public:
-    IndexWriter(std::ostream* strm, MsgIndex::MsgMap* msgMap, MsgId maxMsgId) :
+    IndexWriter(std::ostream* strm, MsgIndex::MsgMap* msgMap, MsgId maxMsgId = INVALID_MSG_ID) :
             writer_(strm),
             msgMap_(msgMap),
-            lastMsgId_(maxMsgId),
+            lastMsgId_((maxMsgId != INVALID_MSG_ID) ? maxMsgId : 0),
             msgCount_(0) {
     }
 
@@ -267,7 +269,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
         return;
     }
     // Process destination index file
-    DEBUG_MSG_INDEX("Opening destination index file: %s", destFile_);
+    DEBUG_MSG_INDEX("Opening index file: %s", destFile_);
     std::fstream destStrm;
     destStrm.exceptions(std::ios::badbit); // Enable exceptions
     destStrm.open(destFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
@@ -286,7 +288,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
     MsgId maxMsgId = destReader.maxMsgId();
     if (!predefFile_.empty()) {
         // Process predefined index file
-        DEBUG_MSG_INDEX("Opening predefined index file: %s", predefFile_);
+        DEBUG_MSG_INDEX("Opening index file: %s", predefFile_);
         std::ifstream predefStrm;
         predefStrm.exceptions(std::ios::badbit); // Enable exceptions
         predefStrm.open(predefFile_, std::ios::in | std::ios::binary);
@@ -304,9 +306,6 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
             maxMsgId = predefMaxMsgId;
         }
     }
-    if (maxMsgId == INVALID_MSG_ID) {
-        maxMsgId = 0;
-    }
     DEBUG_MSG_INDEX("Updating destination index file");
     // Serialize new message descriptions
     std::ostringstream newStrm;
@@ -316,12 +315,13 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
     assert(newWriter.writtenMsgCount() == msgMap->size() - foundMsgCount);
     const std::string newJson = newStrm.str();
     destStrm.clear(); // Clear state flags
+    // TODO: Truncation of the file can be avoided in most cases
     if (destReader.totalMsgCount() == 0) {
-        // Truncate destination file
+        // Overwrite destination file
         fs::resize_file(destFile_, 0);
         destStrm.write(newJson.data(), newJson.size());
     } else {
-        // Append messages to the destination file
+        // Append data to the destination file
         fs::resize_file(destFile_, destReader.lastMsgEndPos());
         appendJsonIndex(&destStrm, newJson);
     }
