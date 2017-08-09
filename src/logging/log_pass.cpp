@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2017 Particle Industries, Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "logging/log_pass.h"
 
 #include "logging/msg_index.h"
@@ -158,8 +175,8 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         return; // Not a function call
     }
     // Get declaration of the called function
-    tree fn = gimple_call_fndecl(stmt);
-    const auto logFuncIt = logFuncs_.find(DECL_UID(fn));
+    tree fnDecl = gimple_call_fndecl(stmt);
+    const auto logFuncIt = logFuncs_.find(DECL_UID(fnDecl));
     if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
     }
@@ -169,7 +186,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         warning(location(stmt), "Unexpected number of arguments");
         return;
     }
-    // Get format string argment
+    // Get format string argument
     tree fmt = gimple_call_arg(stmt, logFunc.fmtArgIndex);
     if (TREE_CODE(fmt) != ADDR_EXPR || TREE_OPERAND_LENGTH(fmt) == 0) {
         return;
@@ -180,7 +197,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     }
     const std::string fmtStr = constStrVal(fmt);
     if (fmtStr.empty()) {
-        return; // Skip empty messages
+        return; // Skip empty message
     }
     // Get attributes argument
     tree attr = gimple_call_arg(stmt, logFunc.attrArgIndex);
@@ -229,7 +246,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
 
 void particle::LogPass::updateMsgIds(const LogMsgList& msgList) {
     assert(msgIndex_);
-    auto res = msgIndex_->process(msgList.begin(), msgList.end(), &LogMsg::fmtStr);
+    const auto res = msgIndex_->process(msgList.begin(), msgList.end(), &LogMsg::fmtStr);
     assert(res.size() == msgList.size());
     // Update log statements with correct message ID values
     for (const auto& r: res) {

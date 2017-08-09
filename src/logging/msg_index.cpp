@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2017 Particle Industries, Inc.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include "logging/msg_index.h"
 
 #include "util/json.h"
@@ -158,7 +175,7 @@ public:
                 throw Error("Message's `%s` attribute is not an integer", JSON_MSG_ID_ATTR);
             }
             const int id = val.toInt();
-            if (id <= 0) {
+            if (id < 0 || id == INVALID_MSG_ID) {
                 throw Error("Invalid message ID: %d", id);
             }
             msgId_ = id;
@@ -322,11 +339,11 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     curStrm.clear(); // Clear state flags
     // TODO: Truncation of the index file can be avoided in most cases
     if (curReader.totalMsgCount() == 0) {
-        // Overwrite current index file
+        // Overwrite index file
         fs::resize_file(curFile_, 0);
         curStrm.write(newJson.data(), newJson.size());
     } else {
-        // Append data to current index file
+        // Append message data to index file
         fs::resize_file(curFile_, curReader.lastMsgEndPos());
         appendJsonIndex(&curStrm, newJson);
     }
