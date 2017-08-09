@@ -223,7 +223,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
             fmtParser.specs().empty() ? "NULL" : format("\"%s\"", boost::join(fmtParser.specs(), " ")));
     const std::string fmtSpecStr = boost::join(fmtParser.specs(), FMT_SPEC_SEP);
     if (!fmtSpecStr.empty()) {
-        fmt = build_string_literal(fmtSpecStr.size(), fmtSpecStr.data());
+        fmt = build_string_literal(fmtSpecStr.size() + 1, fmtSpecStr.data()); // Length includes term. null
     } else {
         fmt = null_pointer_node; // Set format string to NULL
     }

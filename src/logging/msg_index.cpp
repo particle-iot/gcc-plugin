@@ -304,8 +304,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     const std::lock_guard<ipc::file_lock> curLock(curFileLock);
     IndexReader curReader(&curStrm, msgMap, MsgType::CURRENT);
     curReader.parse();
-    unsigned foundMsgCount = curReader.foundMsgCount();
-    if (foundMsgCount == msgMap->size()) {
+    if (curReader.foundMsgCount() == msgMap->size()) {
         return; // All messages have been processed
     }
     MsgId maxMsgId = curReader.maxMsgId();
@@ -320,21 +319,17 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
         }
         IndexReader predefReader(&predefStrm, msgMap, MsgType::PREDEF);
         predefReader.parse();
-        foundMsgCount += predefReader.foundMsgCount();
-        if (foundMsgCount == msgMap->size()) {
-            return; // All messages have been processed
-        }
         const MsgId predefMaxMsgId = predefReader.maxMsgId();
         if ((predefMaxMsgId != INVALID_MSG_ID) && (maxMsgId == INVALID_MSG_ID || predefMaxMsgId > maxMsgId)) {
             maxMsgId = predefMaxMsgId;
         }
     }
-    // Serialize message descriptions
+    // Save new and predefined messages to current index file
     std::ostringstream newStrm;
     newStrm.exceptions(std::ios::badbit); // Enable exceptions
     IndexWriter newWriter(&newStrm, msgMap, maxMsgId, MsgType::NEW | MsgType::PREDEF);
     newWriter.serialize();
-    assert(newWriter.writtenMsgCount() > 0);
+    assert(newWriter.writtenMsgCount() + curReader.foundMsgCount() == msgMap->size());
     const std::string newJson = newStrm.str();
     curStrm.clear(); // Clear state flags
     // TODO: Truncation of the index file can be avoided in most cases
