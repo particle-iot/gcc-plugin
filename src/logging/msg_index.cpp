@@ -48,10 +48,11 @@ void appendJsonIndex(std::ostream* strm, const std::string& json) {
 
 } // namespace
 
-class particle::MsgIndex::IndexReader: public JsonReader::Handler {
+class particle::MsgIndex::IndexReader: public particle::JsonReader::Handler {
 public:
-    IndexReader(std::istream* strm, MsgIndex::MsgMap* msgMap) :
+    IndexReader(std::istream* strm, MsgMap* msgMap, MsgType msgType) :
             msgMap_(msgMap),
+            msgType_(msgType),
             strm_(strm),
             state_(State::NEW),
             level_(0),
@@ -94,6 +95,8 @@ public:
                         throw Error("Duplicate message ID: %u", *msgId_);
                     }
                     msg.id = *msgId_;
+                    assert(msg.type == MsgType::NEW);
+                    msg.type = msgType_;
                     DEBUG_MSG_INDEX("Found message: \"%s\", ID: %u", it->first, msg.id);
                 } else if (msg.id != *msgId_) {
                     throw Error("Conflicting message description, ID: %u", *msgId_);
@@ -192,7 +195,8 @@ private:
         DONE = 0x40
     };
 
-    MsgIndex::MsgMap* msgMap_;
+    MsgMap* msgMap_;
+    MsgType msgType_;
     std::istream* strm_;
 
     boost::optional<std::string> msgText_;
@@ -215,10 +219,11 @@ private:
 
 class particle::MsgIndex::IndexWriter {
 public:
-    IndexWriter(std::ostream* strm, MsgIndex::MsgMap* msgMap, MsgId maxMsgId = INVALID_MSG_ID) :
+    IndexWriter(std::ostream* strm, MsgMap* msgMap, MsgId maxMsgId = INVALID_MSG_ID, unsigned msgTypeMask = 0) :
             writer_(strm),
             msgMap_(msgMap),
-            lastMsgId_((maxMsgId != INVALID_MSG_ID) ? maxMsgId : 0),
+            maxMsgId_((maxMsgId != INVALID_MSG_ID) ? maxMsgId : 0),
+            msgTypeMask_(msgTypeMask),
             msgCount_(0) {
     }
 
@@ -226,16 +231,17 @@ public:
         writer_.beginArray();
         for (auto it = msgMap_->begin(); it != msgMap_->end(); ++it) {
             Msg& msg = it->second;
-            if (msg.id != INVALID_MSG_ID) {
-                continue;
+            if (!msgTypeMask_ || (msg.type & msgTypeMask_)) {
+                if (msg.id == INVALID_MSG_ID) {
+                    msg.id = ++maxMsgId_;
+                    DEBUG_MSG_INDEX("New message: \"%s\", ID: %u", it->first, msg.id);
+                }
+                writer_.beginObject();
+                writer_.name(JSON_MSG_TEXT_ATTR).value(it->first);
+                writer_.name(JSON_MSG_ID_ATTR).value(msg.id);
+                writer_.endObject();
+                ++msgCount_;
             }
-            msg.id = ++lastMsgId_;
-            writer_.beginObject();
-            writer_.name(JSON_MSG_TEXT_ATTR).value(it->first);
-            writer_.name(JSON_MSG_ID_ATTR).value(msg.id);
-            writer_.endObject();
-            ++msgCount_;
-            DEBUG_MSG_INDEX("New message: \"%s\", ID: %u", it->first, msg.id);
         }
         writer_.endArray();
     }
@@ -245,47 +251,47 @@ public:
     }
 
     MsgId maxMsgId() const {
-        return lastMsgId_;
+        return maxMsgId_;
     }
 
 private:
     JsonWriter writer_;
-    MsgIndex::MsgMap* msgMap_;
-    MsgId lastMsgId_;
-    unsigned msgCount_;
+    MsgMap* msgMap_;
+    MsgId maxMsgId_;
+    unsigned msgTypeMask_, msgCount_;
 };
 
-particle::MsgIndex::MsgIndex(const std::string& destFile, const std::string& predefFile) {
-    assert(!destFile.empty());
-    destFile_ = fs::absolute(destFile).string();
+particle::MsgIndex::MsgIndex(const std::string& curFile, const std::string& predefFile) {
+    assert(!curFile.empty());
+    curFile_ = fs::absolute(curFile).string();
     if (!predefFile.empty()) {
         predefFile_ = fs::absolute(predefFile).string();
     }
 }
 
-void particle::MsgIndex::process(MsgMap* msgMap) {
+void particle::MsgIndex::process(MsgMap* msgMap) const {
     assert(msgMap);
     if (msgMap->empty()) {
         return;
     }
-    // Process destination index file
-    DEBUG_MSG_INDEX("Opening index file: %s", destFile_);
-    std::fstream destStrm;
-    destStrm.exceptions(std::ios::badbit); // Enable exceptions
-    destStrm.open(destFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
-    if (!destStrm.is_open()) {
-        throw Error("Unable to open index file: %s", destFile_);
+    // Process current index file
+    DEBUG_MSG_INDEX("Opening index file: %s", curFile_);
+    std::fstream curStrm;
+    curStrm.exceptions(std::ios::badbit); // Enable exceptions
+    curStrm.open(curFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
+    if (!curStrm.is_open()) {
+        throw Error("Unable to open index file: %s", curFile_);
     }
     // TODO: Acquire a sharable lock first
-    ipc::file_lock fileLock(destFile_.data());
-    const std::lock_guard<ipc::file_lock> lock(fileLock);
-    IndexReader destReader(&destStrm, msgMap);
-    destReader.parse();
-    unsigned foundMsgCount = destReader.foundMsgCount();
+    ipc::file_lock curFileLock(curFile_.data());
+    const std::lock_guard<ipc::file_lock> curLock(curFileLock);
+    IndexReader curReader(&curStrm, msgMap, MsgType::CURRENT);
+    curReader.parse();
+    unsigned foundMsgCount = curReader.foundMsgCount();
     if (foundMsgCount == msgMap->size()) {
         return; // All messages have been processed
     }
-    MsgId maxMsgId = destReader.maxMsgId();
+    MsgId maxMsgId = curReader.maxMsgId();
     if (!predefFile_.empty()) {
         // Process predefined index file
         DEBUG_MSG_INDEX("Opening index file: %s", predefFile_);
@@ -295,7 +301,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
         if (!predefStrm.is_open()) {
             throw Error("Unable to open index file: %s", predefFile_);
         }
-        IndexReader predefReader(&predefStrm, msgMap);
+        IndexReader predefReader(&predefStrm, msgMap, MsgType::PREDEF);
         predefReader.parse();
         foundMsgCount += predefReader.foundMsgCount();
         if (foundMsgCount == msgMap->size()) {
@@ -306,24 +312,24 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
             maxMsgId = predefMaxMsgId;
         }
     }
-    DEBUG_MSG_INDEX("Updating index file");
-    // Serialize new message descriptions
+    // Serialize message descriptions
     std::ostringstream newStrm;
     newStrm.exceptions(std::ios::badbit); // Enable exceptions
-    IndexWriter newWriter(&newStrm, msgMap, maxMsgId);
+    IndexWriter newWriter(&newStrm, msgMap, maxMsgId, MsgType::NEW | MsgType::PREDEF);
     newWriter.serialize();
-    assert(newWriter.writtenMsgCount() == msgMap->size() - foundMsgCount);
+    assert(newWriter.writtenMsgCount() > 0);
     const std::string newJson = newStrm.str();
-    destStrm.clear(); // Clear state flags
+    curStrm.clear(); // Clear state flags
     // TODO: Truncation of the index file can be avoided in most cases
-    if (destReader.totalMsgCount() == 0) {
-        // Overwrite destination file
-        fs::resize_file(destFile_, 0);
-        destStrm.write(newJson.data(), newJson.size());
+    if (curReader.totalMsgCount() == 0) {
+        // Overwrite current index file
+        fs::resize_file(curFile_, 0);
+        curStrm.write(newJson.data(), newJson.size());
     } else {
-        // Append data to the destination file
-        fs::resize_file(destFile_, destReader.lastMsgEndPos());
-        appendJsonIndex(&destStrm, newJson);
+        // Append data to current index file
+        fs::resize_file(curFile_, curReader.lastMsgEndPos());
+        appendJsonIndex(&curStrm, newJson);
     }
-    destStrm.write("\n", 1);
+    curStrm.write("\n", 1);
+    curStrm.close(); // Flush stream before releasing the file lock
 }

@@ -7,7 +7,6 @@
 #include "util/variant.h"
 #include "common.h"
 
-#include <unordered_map>
 #include <map>
 #include <list>
 
@@ -29,7 +28,7 @@ public:
     void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
 private:
-    // Description of a logging function
+    // Logging function
     struct LogFunc {
         tree idFieldDecl, hasIdFieldDecl;
         unsigned fmtArgIndex, attrArgIndex;
@@ -42,19 +41,25 @@ private:
         }
     };
 
-    // Description of a log message
+    // Log message
     struct LogMsg {
-        std::list<gimple> assignIdStmts;
+        std::string fmtStr;
+        gimple assignIdStmt;
+
+        LogMsg(std::string fmtStr, gimple assignIdStmt) :
+                fmtStr(std::move(fmtStr)),
+                assignIdStmt(assignIdStmt) {
+        }
     };
 
-    typedef std::unordered_map<std::string, LogMsg> LogMsgMap;
+    typedef std::list<LogMsg> LogMsgList;
 
     std::map<DeclUid, LogFunc> logFuncs_;
     std::unique_ptr<MsgIndex> msgIndex_;
 
-    void processFunc(function* fn, LogMsgMap* msgMap);
-    void processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap);
-    void updateMsgIds(const LogMsgMap& msgMap);
+    void processFunc(function* fn, LogMsgList* msgList);
+    void processStmt(gimple_stmt_iterator gsi, LogMsgList* msgList);
+    void updateMsgIds(const LogMsgList& msgList);
 
     static LogFunc makeLogFunc(tree fnDecl, unsigned fmtArgIndex);
 };

@@ -3,7 +3,7 @@
 #include "common.h"
 
 #include <unordered_map>
-#include <vector>
+#include <list>
 
 namespace particle {
 
@@ -13,22 +13,31 @@ const MsgId INVALID_MSG_ID = 0;
 
 class MsgIndex {
 public:
-    explicit MsgIndex(const std::string& destFile, const std::string& predefFile = std::string());
+    // Result of the index lookup for a given message
+    template<typename IterT>
+    using Result = std::pair<IterT, MsgId>;
 
-    template<typename IterT, typename MsgStrT, typename AssignIdT>
-    void process(IterT begin, IterT end, MsgStrT msgStr, AssignIdT assignId, size_t sizeHint = 0);
+    explicit MsgIndex(const std::string& curFile, const std::string& predefFile = std::string());
 
-    template<typename MsgsT, typename MsgStrT, typename AssignIdT>
-    void process(const MsgsT& msgs, MsgStrT msgStr, AssignIdT assignId);
+    template<typename IterT, typename MsgT, typename FmtStrT>
+    std::list<Result<IterT>> process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr);
 
 private:
+    enum MsgType {
+        NEW = 0x01,
+        CURRENT = 0x02,
+        PREDEF = 0x04
+    };
+
     struct Msg {
-        MsgId id; // Message ID
+        MsgId id;
+        MsgType type;
         void* data; // User data
 
-        explicit Msg(void* data) :
+        Msg() :
                 id(INVALID_MSG_ID),
-                data(data) {
+                type(MsgType::NEW),
+                data(nullptr) {
         }
     };
 
@@ -37,37 +46,40 @@ private:
     class IndexReader;
     class IndexWriter;
 
-    std::string destFile_, predefFile_;
+    std::string curFile_, predefFile_;
 
-    void process(MsgMap* msgMap);
-
-    friend class IndexReader;
-    friend class IndexWriter;
+    void process(MsgMap* msgMap) const;
 };
 
 } // namespace particle
 
-template<typename IterT, typename MsgStrT, typename AssignIdT>
-inline void particle::MsgIndex::process(IterT begin, IterT end, MsgStrT msgStr, AssignIdT assignId, size_t sizeHint) {
-    // Copy all messages to internal map
+template<typename IterT, typename MsgT, typename FmtStrT>
+inline std::list<particle::MsgIndex::Result<IterT>> particle::MsgIndex::process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr) {
     MsgMap msgMap;
-    std::vector<IterT> srcIts;
-    srcIts.reserve(sizeHint);
+    std::list<std::list<IterT>> iterLists; // User iterators
+    // Copy all messages to internal map
     for (auto it = begin; it != end; ++it) {
-        srcIts.push_back(it);
-        const std::string str = msgStr(it);
-        msgMap.insert(std::make_pair(str, Msg(&srcIts.back())));
+        std::string s = *it.*fmtStr;
+        const auto r = msgMap.insert(std::make_pair(std::move(s), Msg()));
+        Msg& msg = r.first->second;
+        if (r.second) {
+            iterLists.push_back(std::list<IterT>());
+            msg.data = &iterLists.back();
+        }
+        const auto iters = static_cast<std::list<IterT>*>(msg.data);
+        assert(iters);
+        iters->push_back(it);
     }
     // Process messages
     process(&msgMap);
-    // Invoke user handler for each message
+    std::list<Result<IterT>> res;
     for (auto it = msgMap.begin(); it != msgMap.end(); ++it) {
-        auto srcIt = static_cast<IterT*>(it->second.data);
-        assignId(*srcIt, it->second.id);
+        const Msg& msg = it->second;
+        const auto iters = static_cast<std::list<IterT>*>(msg.data);
+        assert(iters);
+        for (auto it = iters->begin(); it != iters->end(); ++it) {
+            res.push_back(std::make_pair(*it, msg.id));
+        }
     }
-}
-
-template<typename MsgsT, typename MsgStrT, typename AssignIdT>
-inline void particle::MsgIndex::process(const MsgsT& msgs, MsgStrT msgStr, AssignIdT assignId) {
-    process(msgs.begin(), msgs.end(), msgStr, assignId, msgs.size() /* sizeHint */);
+    return res;
 }
