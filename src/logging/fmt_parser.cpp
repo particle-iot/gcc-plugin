@@ -1,6 +1,7 @@
 #include "logging/fmt_parser.h"
 
 #include "error.h"
+#include "debug.h"
 
 #include <cctype>
 
@@ -34,77 +35,80 @@ inline char next(const char*& s) {
 
 } // namespace
 
-particle::FmtParser::FmtParser(const std::string& fmt, char fmtSpecSep) :
+particle::FmtParser::FmtParser(const std::string& fmt) :
         flags_(0),
         ok_(false) {
     try {
-        parse(fmt, fmtSpecSep);
+        Specs specs;
+        specs.reserve(4);
+        unsigned flags = 0;
+        parse(fmt, &specs, &flags);
+        specs_ = std::move(specs);
+        flags_ = flags;
+        ok_ = true;
     } catch (const InvalidFmtStrError&) {
         // This class doesn't throw exceptions in case of parsing errors
     }
 }
 
-void particle::FmtParser::parse(const std::string& fmt, char fmtSpecSep) {
-    specStr_.reserve(fmt.size() / 4);
-    const char* src = fmt.data();
+void particle::FmtParser::parse(const std::string& fmt, Specs* specs, unsigned* flags) {
+    assert(specs && flags);
+    const char* s = fmt.data();
     char c = 0;
-    while ((c = *src) != '\0') {
+    while ((c = *s) != '\0') {
         if (c != '%') {
-            ++src;
+            ++s;
             continue;
         }
-        const char* const spec = src; // Beginning of the format specifier
-        c = next(src);
+        const char* const spec = s; // Beginning of the format specifier
+        ++s;
+        c = next(s);
         // Flags (optional)
         while (isOneOf(c, " -+#0")) {
-            c = next(src);
+            c = next(s);
         }
         // Field width (optional)
         if (c == '*') {
-            flags_ |= Flag::DYN_SPEC;
-            c = next(src);
+            *flags |= Flag::DYN_SPEC;
+            c = next(s);
         } else {
             while (std::isdigit(c)) {
-                c = next(src);
+                c = next(s);
             }
         }
         // Precision (optional)
         if (c == '.') {
-            c = next(src);
+            c = next(s);
             if (c == '*') {
-                flags_ |= Flag::DYN_SPEC;
-                c = next(src);
+                *flags |= Flag::DYN_SPEC;
+                c = next(s);
             } else {
                 while (std::isdigit(c)) {
-                    c = next(src);
+                    c = next(s);
                 }
             }
         }
         // Length modifier (optional)
         if (c == 'h') {
-            c = next(src);
+            c = next(s);
             if (c == 'h') { // hh
-                c = next(src);
+                c = next(s);
             }
         } else if (c == 'l') {
-            c = next(src);
+            c = next(s);
             if (c == 'l') { // ll
-                c = next(src);
+                c = next(s);
             }
         } else if (isOneOf(c, "jztL")) {
-            c = next(src);
+            c = next(s);
         }
         // Conversion specifier
-        if (c == '%' && src - spec == 2) { // %%
+        if (c == '%' && s - spec == 2) { // %%
             continue;
         }
         if (!isOneOf(c, "csdioxXufFeEaAgGnp")) {
             throw InvalidFmtStrError();
         }
-        if (!specStr_.empty()) {
-            specStr_ += fmtSpecSep;
-        }
-        specStr_.append(spec, src - spec);
+        specs->push_back(std::string(spec, s - spec));
     }
-    ok_ = true;
 }

@@ -2,23 +2,23 @@
 
 #include "common.h"
 
+#include <vector>
+
 namespace particle {
 
 // Parser for printf() format strings
 class FmtParser {
 public:
-    // Default separator character
-    static const char DEFAULT_FMT_SPEC_SEP = 0x1f; // Unit Separator (US)
+    typedef std::vector<std::string> Specs;
 
-    explicit FmtParser(const std::string& fmt, char fmtSpecSep = DEFAULT_FMT_SPEC_SEP);
+    explicit FmtParser(const std::string& fmt);
 
-    // Returns all format specifiers of the format string, separated by `fmtSpecSep` character
-    // passed to the constructor
-    const std::string& specStr() const;
+    // Returns all format specifiers of the format string
+    const Specs& specs() const;
 
     // Returns `true` if the format string contains "dynamic" format specifiers, such as asterisk ('*')
     // specified in place of a field width
-    bool hasDynSpec() const;
+    bool dynSpec() const;
 
     explicit operator bool() const;
 
@@ -27,20 +27,20 @@ private:
         DYN_SPEC = 0x01
     };
 
-    std::string specStr_;
+    Specs specs_;
     unsigned flags_;
     bool ok_;
 
-    void parse(const std::string& fmt, char fmtSpecSep);
+    static void parse(const std::string& fmt, Specs* specs, unsigned* flags);
 };
 
 } // namespace particle
 
-inline const std::string& particle::FmtParser::specStr() const {
-    return specStr_;
+inline const particle::FmtParser::Specs& particle::FmtParser::specs() const {
+    return specs_;
 }
 
-inline bool particle::FmtParser::hasDynSpec() const {
+inline bool particle::FmtParser::dynSpec() const {
     return (flags_ & Flag::DYN_SPEC);
 }
 

@@ -1,8 +1,11 @@
 #include "logging/log_pass.h"
 
 #include "logging/msg_index.h"
+#include "logging/fmt_parser.h"
 #include "plugin/gimple.h"
 #include "debug.h"
+
+#include <boost/algorithm/string/join.hpp>
 
 // Uncomment to enable more debugging output
 // #define DEBUG_LOG_PASS(...) DEBUG(__VA_ARGS__)
@@ -30,6 +33,9 @@ const pass_data LOG_PASS_DATA = {
 const std::string LOG_ATTR_STRUCT = "LogAttributes";
 const std::string LOG_ATTR_ID_FIELD = "id";
 const std::string LOG_ATTR_HAS_ID_FIELD = "has_id";
+
+// Separator character for printf() format specifiers
+const std::string FMT_SPEC_SEP = "\x1f"; // Unit Separator (US)
 
 // Returns reference (a COMPONENT_REF node) to a structure's field, which may be nested in a number of
 // anonymous struct/union fields. GCC already provides build_component_ref() function that does the
@@ -152,8 +158,8 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap)
         return; // Not a function call
     }
     // Get declaration of the called function
-    tree fnDecl = gimple_call_fndecl(stmt);
-    const auto logFuncIt = logFuncs_.find(DECL_UID(fnDecl));
+    tree fn = gimple_call_fndecl(stmt);
+    const auto logFuncIt = logFuncs_.find(DECL_UID(fn));
     if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
     }
@@ -164,33 +170,55 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgMap* msgMap)
         return;
     }
     // Get format string argment
-    tree t = gimple_call_arg(stmt, logFunc.fmtArgIndex);
-    if (TREE_CODE(t) != ADDR_EXPR || TREE_OPERAND_LENGTH(t) == 0) {
+    tree fmt = gimple_call_arg(stmt, logFunc.fmtArgIndex);
+    if (TREE_CODE(fmt) != ADDR_EXPR || TREE_OPERAND_LENGTH(fmt) == 0) {
         return;
     }
-    t = TREE_OPERAND(t, 0);
-    if (TREE_CODE(t) != STRING_CST) {
+    fmt = TREE_OPERAND(fmt, 0);
+    if (TREE_CODE(fmt) != STRING_CST) {
         return; // Not a string constant
     }
-    const std::string fmtStr = constStrVal(t); // Format string
+    const std::string fmtStr = constStrVal(fmt);
+    if (fmtStr.empty()) {
+        return; // Skip empty messages
+    }
     // Get attributes argument
-    t = gimple_call_arg(stmt, logFunc.attrArgIndex);
-    if (TREE_CODE(t) != ADDR_EXPR || TREE_OPERAND_LENGTH(t) == 0) {
+    tree attr = gimple_call_arg(stmt, logFunc.attrArgIndex);
+    if (TREE_CODE(attr) != ADDR_EXPR || TREE_OPERAND_LENGTH(attr) == 0) {
         return;
     }
     // Get declaration of the attributes variable
-    t = TREE_OPERAND(t, 0);
-    if (TREE_CODE(t) != VAR_DECL) {
+    attr = TREE_OPERAND(attr, 0);
+    if (TREE_CODE(attr) != VAR_DECL) {
         return;
     }
-    DEBUG_LOG_PASS("%s: Log message: \"%s\"", location(stmt).str(), fmtStr);
+    // Parse format string
+    FmtParser fmtParser(fmtStr);
+    if (!fmtParser) {
+        warning(location(stmt), "Invalid format string: \"%s\"", fmtStr);
+        return;
+    }
+    if (fmtParser.dynSpec()) {
+        DEBUG_LOG_PASS("Skipping message with dynamic format specifiers: \"%s\"", fmtStr);
+        return;
+    }
+    DEBUG_LOG_PASS("%s: Log message: \"%s\" -> %s", location(stmt).str(), fmtStr,
+            fmtParser.specs().empty() ? "NULL" : format("\"%s\"", boost::join(fmtParser.specs(), " ")));
+    const std::string fmtSpecStr = boost::join(fmtParser.specs(), FMT_SPEC_SEP);
+    if (!fmtSpecStr.empty()) {
+        fmt = build_string_literal(fmtSpecStr.size(), fmtSpecStr.data());
+    } else {
+        fmt = null_pointer_node; // Set format string to NULL
+    }
+    // Replace format string argument
+    gimple_call_set_arg(stmt, logFunc.fmtArgIndex, null_pointer_node);
     // Set `LogAttributes::id` field
-    tree lhs = buildComponentRef(t, logFunc.idFieldDecl);
-    tree rhs = build_int_cst(integer_type_node, 0); // Placeholder for a message ID value
+    tree lhs = buildComponentRef(attr, logFunc.idFieldDecl);
+    tree rhs = build_int_cst(unsigned_type_node, INVALID_MSG_ID); // Placeholder for a message ID value
     gimple assignId = gimple_build_assign(lhs, rhs);
     gsi_insert_before(&gsi, assignId, GSI_SAME_STMT);
     // Set `LogAttributes::has_id` field
-    lhs = buildComponentRef(t, logFunc.hasIdFieldDecl);
+    lhs = buildComponentRef(attr, logFunc.hasIdFieldDecl);
     rhs = build_int_cst(integer_type_node, 1);
     gimple assignHasId = gimple_build_assign(lhs, rhs);
     gsi_insert_before(&gsi, assignHasId, GSI_SAME_STMT);
@@ -208,7 +236,7 @@ void particle::LogPass::updateMsgIds(const LogMsgMap& msgMap) {
         },
         [](const LogMsgMap::const_iterator& it, MsgId id) {
             // Update log statements with a correct message ID value
-            tree rhs = build_int_cst(integer_type_node, id);
+            tree rhs = build_int_cst(unsigned_type_node, id);
             for (gimple stmt: it->second.assignIdStmts) {
                 gimple_assign_set_rhs1(stmt, rhs);
             }

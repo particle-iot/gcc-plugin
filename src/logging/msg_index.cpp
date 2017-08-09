@@ -28,18 +28,18 @@ using namespace particle;
 namespace ipc = boost::interprocess;
 namespace fs = boost::filesystem;
 
-// Some JSON schema definitions
+// JSON schema definitions
 const std::string JSON_MSG_TEXT_ATTR = "msg";
 const std::string JSON_MSG_ID_ATTR = "id";
 const unsigned JSON_MSG_OBJ_LEVEL = 2;
 
-// Concatenates two serialized non-empty JSON arrays with message descriptions
+// Concatenates two serialized non-empty JSON arrays of message objects
 void appendJsonIndex(std::ostream* strm, const std::string& json) {
     auto p = json.find('{');
-    assert(p != std::string::npos && p > 0); // Message objects are always nested in an array
+    assert(p != std::string::npos && p > 0);
     char c = 0;
     while ((c = json.at(p - 1)) != '\n' && std::isspace(c)) { // Preserve indentation
-        assert(p > 0);
+        assert(p > 1);
         --p;
     }
     strm->write(",\n", 2);
@@ -306,7 +306,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
             maxMsgId = predefMaxMsgId;
         }
     }
-    DEBUG_MSG_INDEX("Updating destination index file");
+    DEBUG_MSG_INDEX("Updating index file");
     // Serialize new message descriptions
     std::ostringstream newStrm;
     newStrm.exceptions(std::ios::badbit); // Enable exceptions
@@ -315,7 +315,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) {
     assert(newWriter.writtenMsgCount() == msgMap->size() - foundMsgCount);
     const std::string newJson = newStrm.str();
     destStrm.clear(); // Clear state flags
-    // TODO: Truncation of the file can be avoided in most cases
+    // TODO: Truncation of the index file can be avoided in most cases
     if (destReader.totalMsgCount() == 0) {
         // Overwrite destination file
         fs::resize_file(destFile_, 0);
