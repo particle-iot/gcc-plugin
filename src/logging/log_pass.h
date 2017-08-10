@@ -20,7 +20,7 @@
 #include "plugin/plugin_base.h"
 #include "plugin/pass.h"
 #include "plugin/tree.h"
-#include "plugin/gcc.h"
+#include "plugin/gcc_defs.h"
 #include "util/variant.h"
 #include "common.h"
 

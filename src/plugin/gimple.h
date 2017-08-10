@@ -18,7 +18,7 @@
 #pragma once
 
 #include "plugin/location.h"
-#include "plugin/gcc.h"
+#include "plugin/gcc_defs.h"
 #include "common.h"
 
 #ifndef NDEBUG

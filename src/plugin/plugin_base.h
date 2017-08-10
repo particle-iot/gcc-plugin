@@ -19,7 +19,7 @@
 
 #include "plugin/pass_reg_info.h"
 #include "plugin/attr_spec.h"
-#include "plugin/gcc.h"
+#include "plugin/gcc_defs.h"
 #include "util/variant.h"
 #include "util/string.h"
 #include "common.h"

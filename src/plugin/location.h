@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "plugin/gcc.h"
+#include "plugin/gcc_defs.h"
 #include "util/string.h"
 #include "common.h"
 
