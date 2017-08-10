@@ -292,6 +292,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     if (!curStrm.is_open()) {
         throw Error("Unable to open index file: %s", curFile_);
     }
+    curStrm.seekg(0);
     // TODO: Acquire a sharable lock first
     ipc::file_lock curFileLock(curFile_.data());
     const std::lock_guard<ipc::file_lock> curLock(curFileLock);

@@ -111,11 +111,14 @@ unsigned particle::LogPass::execute(function*) {
         cgraph_node *node = nullptr;
         FOR_EACH_DEFINED_FUNCTION(node) {
             function* const fn = node->get_fun();
-            assert(fn);
-            processFunc(fn, &msgList);
+            if (fn) {
+                processFunc(fn, &msgList);
+            }
         }
         // Update message IDs
-        updateMsgIds(msgList);
+        if (!msgList.empty()) {
+            updateMsgIds(msgList);
+        }
     } catch (const PassError& e) {
         error(e.location(), e.message());
     } catch (const std::exception& e) {
@@ -141,7 +144,6 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
     if (TREE_CODE(t) != FUNCTION_DECL) {
         throw Error("This attribute can be applied only to function declarations");
     }
-    DEBUG("%s: Logging function: %s()", location(t).str(), declName(t));
     if (args.size() != 1) {
         throw Error("Invalid number of attribute arguments");
     }
@@ -153,11 +155,14 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
 }
 
 void particle::LogPass::processFunc(function* fn, LogMsgList* msgList) {
-    // Iterate over all GIMPLE statements in all basic blocks
-    basic_block bb = { 0 };
-    FOR_ALL_BB_FN(bb, fn) {
-        for (gimple_stmt_iterator gsi = gsi_start_bb(bb); !gsi_end_p(gsi); gsi_next(&gsi)) {
-            processStmt(gsi, msgList);
+    assert(fn);
+    if (fn->cfg) {
+        // Iterate over all GIMPLE statements in all basic blocks
+        basic_block bb = nullptr;
+        FOR_ALL_BB_FN(bb, fn) {
+            for (gimple_stmt_iterator gsi = gsi_start_bb(bb); !gsi_end_p(gsi); gsi_next(&gsi)) {
+                processStmt(gsi, msgList);
+            }
         }
     }
 }
@@ -169,6 +174,9 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     }
     // Get declaration of the called function
     tree fnDecl = gimple_call_fndecl(stmt);
+    if (fnDecl == NULL_TREE) {
+        return;
+    }
     const auto logFuncIt = logFuncs_.find(DECL_UID(fnDecl));
     if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
