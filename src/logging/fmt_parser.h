@@ -33,22 +33,18 @@ public:
     // Returns all format specifiers of the format string
     const Specs& specs() const;
 
-    // Returns `true` if the format string contains "dynamic" format specifiers, such as an asterisk ('*')
-    // character specified in place of a field width
-    bool dynSpec() const;
+    // Join all format specifiers into a single string
+    std::string joinSpecs(const std::string& sep) const;
+    std::string joinSpecs(char sep) const;
 
+    bool hasSpecs() const;
+
+    // Returns `false` in case of a parsing error
     explicit operator bool() const;
 
 private:
-    enum Flag {
-        DYN_SPEC = 0x01
-    };
-
     Specs specs_;
-    unsigned flags_;
     bool ok_;
-
-    static void parse(const std::string& fmt, Specs* specs, unsigned* flags);
 };
 
 } // namespace particle
@@ -57,8 +53,12 @@ inline const particle::FmtParser::Specs& particle::FmtParser::specs() const {
     return specs_;
 }
 
-inline bool particle::FmtParser::dynSpec() const {
-    return (flags_ & Flag::DYN_SPEC);
+inline std::string particle::FmtParser::joinSpecs(char sep) const {
+    return joinSpecs(std::string(1, sep));
+}
+
+inline bool particle::FmtParser::hasSpecs() const {
+    return !specs_.empty();
 }
 
 inline particle::FmtParser::operator bool() const {

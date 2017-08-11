@@ -22,8 +22,6 @@
 #include "plugin/gimple.h"
 #include "debug.h"
 
-#include <boost/algorithm/string/join.hpp>
-
 namespace {
 
 using namespace particle;
@@ -45,7 +43,7 @@ const std::string LOG_ATTR_ID_FIELD = "id";
 const std::string LOG_ATTR_HAS_ID_FIELD = "has_id";
 
 // Separator character for printf() format specifiers
-const std::string FMT_SPEC_SEP = "\x1f"; // Unit Separator (US)
+const char FMT_SPEC_SEP = 0x1f; // Unit Separator (US)
 
 // Returns reference (a COMPONENT_REF node) to a structure's field, which may be nested in a number of
 // anonymous struct/union fields. GCC already provides build_component_ref() function that does the
@@ -156,7 +154,7 @@ void particle::LogPass::attrHandler(tree t, const std::string& name, std::vector
 
 void particle::LogPass::processFunc(function* fn, LogMsgList* msgList) {
     assert(fn);
-    if (fn->cfg) {
+    if (fn->cfg) { // Ensure that the function has a control flow graph
         // Iterate over all GIMPLE statements in all basic blocks
         basic_block bb = nullptr;
         FOR_ALL_BB_FN(bb, fn) {
@@ -181,10 +179,11 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
     }
+    const Location stmtLoc = location(stmt);
     const LogFunc& logFunc = logFuncIt->second;
     const unsigned argCount = gimple_call_num_args(stmt);
     if (logFunc.fmtArgIndex >= argCount || logFunc.attrArgIndex >= argCount) {
-        warning(location(stmt), "Unexpected number of arguments");
+        warning(stmtLoc, "Unexpected number of arguments");
         return;
     }
     // Get format string argument
@@ -213,16 +212,11 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     // Parse format string
     FmtParser fmtParser(fmtStr);
     if (!fmtParser) {
-        warning(location(stmt), "Invalid format string: \"%s\"", fmtStr);
+        warning(stmtLoc, "Invalid format string: \"%s\"", fmtStr);
         return;
     }
-    if (fmtParser.dynSpec()) {
-        DEBUG("Skipping message with dynamic format specifiers: \"%s\"", fmtStr);
-        return;
-    }
-    DEBUG("%s: Log message: \"%s\" -> %s", location(stmt).str(), fmtStr,
-            fmtParser.specs().empty() ? "NULL" : format("\"%s\"", boost::join(fmtParser.specs(), " ")));
-    const std::string fmtSpecStr = boost::join(fmtParser.specs(), FMT_SPEC_SEP);
+    DEBUG("%s: Log message: \"%s\" -> %s", stmtLoc.str(), fmtStr, fmtParser.hasSpecs() ? fmtParser.joinSpecs(' ') : "NULL");
+    const std::string fmtSpecStr = fmtParser.joinSpecs(FMT_SPEC_SEP);
     if (!fmtSpecStr.empty()) {
         fmt = build_string_literal(fmtSpecStr.size() + 1, fmtSpecStr.data()); // Length includes term. null
     } else {

@@ -285,7 +285,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
         return;
     }
     // Process current index file
-    DEBUG("Opening index file: %s", curFile_);
+    DEBUG("Opening current index file: %s", curFile_);
     std::fstream curStrm;
     curStrm.exceptions(std::ios::badbit); // Enable exceptions
     curStrm.open(curFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
@@ -304,7 +304,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     MsgId maxMsgId = curReader.maxMsgId();
     if (!predefFile_.empty()) {
         // Process predefined index file
-        DEBUG("Opening index file: %s", predefFile_);
+        DEBUG("Opening predefined index file: %s", predefFile_);
         std::ifstream predefStrm;
         predefStrm.exceptions(std::ios::badbit); // Enable exceptions
         predefStrm.open(predefFile_, std::ios::in | std::ios::binary);
@@ -319,6 +319,7 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
         }
     }
     // Save new and predefined messages to current index file
+    DEBUG("Updating current index file");
     std::ostringstream newStrm;
     newStrm.exceptions(std::ios::badbit); // Enable exceptions
     IndexWriter newWriter(&newStrm, msgMap, maxMsgId, MsgType::NEW | MsgType::PREDEF);

@@ -20,6 +20,8 @@
 #include "error.h"
 #include "debug.h"
 
+#include <boost/algorithm/string/join.hpp>
+
 #include <cctype>
 
 namespace {
@@ -50,26 +52,10 @@ inline char next(const char*& s) {
     return c;
 }
 
-} // namespace
-
-particle::FmtParser::FmtParser(const std::string& fmt) :
-        flags_(0),
-        ok_(false) {
-    try {
-        Specs specs;
-        specs.reserve(4);
-        unsigned flags = 0;
-        parse(fmt, &specs, &flags);
-        specs_ = std::move(specs);
-        flags_ = flags;
-        ok_ = true;
-    } catch (const InvalidFmtStrError&) {
-        // This class doesn't throw exceptions in case of parsing errors
-    }
-}
-
-void particle::FmtParser::parse(const std::string& fmt, Specs* specs, unsigned* flags) {
-    assert(specs && flags);
+particle::FmtParser::Specs parseFmtStr(const std::string& fmt) {
+    FmtParser::Specs specs;
+    specs.reserve(4);
+    // printf() format strings can easily be parsed by a regex, but let's make it in a more readable way
     const char* s = fmt.data();
     char c = 0;
     while ((c = *s) != '\0') {
@@ -86,7 +72,6 @@ void particle::FmtParser::parse(const std::string& fmt, Specs* specs, unsigned* 
         }
         // Field width (optional)
         if (c == '*') {
-            *flags |= Flag::DYN_SPEC;
             c = next(s);
         } else {
             while (std::isdigit(c)) {
@@ -97,7 +82,6 @@ void particle::FmtParser::parse(const std::string& fmt, Specs* specs, unsigned* 
         if (c == '.') {
             c = next(s);
             if (c == '*') {
-                *flags |= Flag::DYN_SPEC;
                 c = next(s);
             } else {
                 while (std::isdigit(c)) {
@@ -126,6 +110,23 @@ void particle::FmtParser::parse(const std::string& fmt, Specs* specs, unsigned* 
         if (!isOneOf(c, "csdioxXufFeEaAgGnp")) {
             throw InvalidFmtStrError();
         }
-        specs->push_back(std::string(spec, s - spec));
+        specs.push_back(std::string(spec, s - spec));
     }
+    return specs;
+}
+
+} // namespace
+
+particle::FmtParser::FmtParser(const std::string& fmt) :
+        ok_(false) {
+    try {
+        specs_ = parseFmtStr(fmt);
+        ok_ = true;
+    } catch (const InvalidFmtStrError&) {
+        // This class doesn't throw exceptions in case of parsing errors
+    }
+}
+
+std::string particle::FmtParser::joinSpecs(const std::string& sep) const {
+    return boost::join(specs_, sep);
 }
