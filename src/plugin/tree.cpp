@@ -24,13 +24,15 @@ namespace {
 
 using namespace particle;
 
-// Return class name of a tree node (for debugging purposes)
-std::string className(const_tree t) {
+// Returns class name of a tree node (for debugging purposes)
+inline std::string className(const_tree t) {
     return TREE_CODE_CLASS_STRING(TREE_CODE_CLASS(TREE_CODE(t)));
 }
 
-inline void __attribute__((noreturn)) treeCheckFailed(const_tree t, const char* file, int line) {
-    DEBUG_TREE(t);
+inline void __attribute__((noreturn)) treeCheckFailed(const char* file, int line, const_tree t = NULL_TREE) {
+    if (t != NULL_TREE) {
+        DEBUG_TREE(t);
+    }
     throw Error("Tree check failed: %s:%d", file, line);
 }
 
@@ -38,26 +40,26 @@ inline void __attribute__((noreturn)) treeCheckFailed(const_tree t, const char* 
 
 #ifdef ENABLE_TREE_CHECKING
 
-// GCC doesn't provide default implementations of these functions (a name mangling issue?)
+// It's either a name mangling issue or GCC doesn't provide implementations of these functions
 void tree_contains_struct_check_failed(const_tree t, const enum tree_node_structure_enum, const char* file, int line,
         const char*) {
-    treeCheckFailed(t, file, line);
+    treeCheckFailed(file, line, t);
 }
 
 void tree_check_failed(const_tree t, const char* file, int line, const char*, ...) {
-    treeCheckFailed(t, file, line);
+    treeCheckFailed(file, line, t);
 }
 
 void tree_class_check_failed(const_tree t, const enum tree_code_class, const char* file, int line, const char*) {
-    treeCheckFailed(t, file, line);
+    treeCheckFailed(file, line, t);
 }
 
 void tree_operand_check_failed(int, const_tree t, const char* file, int line, const char*) {
-    treeCheckFailed(t, file, line);
+    treeCheckFailed(file, line, t);
 }
 
 void tree_int_cst_elt_check_failed(int, int, const char* file, int line, const char*) {
-    treeCheckFailed(NULL_TREE, file, line);
+    treeCheckFailed(file, line);
 }
 
 #endif // defined(ENABLE_TREE_CHECKING)

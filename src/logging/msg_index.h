@@ -72,6 +72,7 @@ private:
 
 template<typename IterT, typename MsgT, typename FmtStrT>
 inline std::list<particle::MsgIndex::Result<IterT>> particle::MsgIndex::process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr) {
+    // TODO: This code needs refactoring
     MsgMap msgMap;
     std::list<std::list<IterT>> iterLists; // User iterators
     // Copy all messages to internal map

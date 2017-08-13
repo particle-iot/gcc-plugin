@@ -109,7 +109,7 @@ public:
                     msg.type = msgType_;
                     DEBUG("Found message: \"%s\", ID: %u", it->first, msg.id);
                 } else if (msg.id != *msgId_) {
-                    throw Error("Conflicting message description, ID: %u", *msgId_);
+                    throw Error("Conflicting message, ID: %u", *msgId_);
                 }
             }
             if (maxMsgId_ == INVALID_MSG_ID || *msgId_ > maxMsgId_) {
@@ -247,8 +247,8 @@ public:
                     DEBUG("New message: \"%s\", ID: %u", it->first, msg.id);
                 }
                 writer_.beginObject();
-                writer_.name(JSON_MSG_TEXT_ATTR).value(it->first);
                 writer_.name(JSON_MSG_ID_ATTR).value(msg.id);
+                writer_.name(JSON_MSG_TEXT_ATTR).value(it->first);
                 writer_.endObject();
                 ++msgCount_;
             }

@@ -53,10 +53,10 @@ particle::PluginBase::~PluginBase() {
     g_instance = nullptr;
 }
 
-void particle::PluginBase::init(plugin_name_args *args, plugin_gcc_version *version) {
+void particle::PluginBase::init(plugin_name_args* args, plugin_gcc_version* version) {
     // Check version of the host compiler
     assert(version);
-    if (!plugin_default_version_check(version, &gcc_version /* Defined in plugin-version.h */)) {
+    if (!plugin_default_version_check(version, &gcc_version)) { // `gcc_version` is defined in plugin-version.h
         throw Error("This plugin is built for GCC %s", gcc_version.basever);
     }
     // Parse plugin arguments
@@ -98,7 +98,6 @@ void particle::PluginBase::registerAttr(const AttrSpec& attr) {
     }
     const auto it = r.first;
     AttrSpecData& d = it->second;
-    std::memset(&d.gcc, 0, sizeof(d.gcc));
     d.gcc.name = it->first.data();
     d.gcc.min_length = attr.minArgCount();
     d.gcc.max_length = attr.maxArgCount();
@@ -115,7 +114,7 @@ gcc::context* particle::PluginBase::gccContext() {
     return g; // Defined in context.h
 }
 
-void particle::PluginBase::startUnit(void *gccData, void *userData) {
+void particle::PluginBase::startUnit(void* gccData, void* userData) {
     try {
         // Define plugin macros
         PluginBase* const p = static_cast<PluginBase*>(userData);
@@ -129,12 +128,12 @@ void particle::PluginBase::startUnit(void *gccData, void *userData) {
     }
 }
 
-void particle::PluginBase::registerAttrs(void *gccData, void *userData) {
+void particle::PluginBase::registerAttrs(void* gccData, void* userData) {
     try {
         // Register plugin attributes
         PluginBase* const p = static_cast<PluginBase*>(userData);
         for (const auto& pair: p->attrSpecs_) {
-            // TODO: Register C++11 attribute as well
+            // TODO: Register a scoped C++11 attribute as well
             register_attribute(&pair.second.gcc);
         }
     } catch (const std::exception& e) {
@@ -150,7 +149,7 @@ tree particle::PluginBase::attrHandler(tree* node, tree name, tree args, int fla
         if (it != p->attrSpecs_.end() && it->second.handler) {
             // Get attribute arguments
             std::vector<Variant> attrArgs;
-            for (tree& t = args; t != NULL_TREE; t = TREE_CHAIN(t)) {
+            for (tree t = args; t != NULL_TREE; t = TREE_CHAIN(t)) {
                 attrArgs.push_back(constVal(TREE_VALUE(t)));
             }
             assert(node);

@@ -94,7 +94,7 @@ COMMON_DIR_DEBUG = $(sort $(dir $(OBJ_SRC_DEBUG)) $(dir $(OBJ_PCH_DEBUG)) $(dir 
 .PHONY: bin-prepare bin-release bin-debug lib-release lib-debug \
     shared-lib-prepare shared-lib-release shared-lib-debug \
     static-lib-prepare static-lib-release static-lib-debug \
-    prepare clean distclean all
+    gen-release gen-debug prepare clean distclean all
 
 all: debug release
 release: $(TARGET_TYPE)-release
@@ -104,40 +104,44 @@ lib-release: shared-lib-release static-lib-release
 lib-debug: shared-lib-debug static-lib-debug
 
 clean:
-	@rm -f $(OBJ_SRC_RELEASE) $(OBJ_SRC_DEBUG) \
+	rm -f $(OBJ_SRC_RELEASE) $(OBJ_SRC_DEBUG) \
 	    $(OBJ_PCH_RELEASE) $(OBJ_PCH_DEBUG) \
 	    $(DEP_RELEASE) $(DEP_DEBUG)
 
 distclean:
-	@rm -rf $(RELEASE_DIR) $(DEBUG_DIR)
+	rm -rf $(RELEASE_DIR) $(DEBUG_DIR)
+
+# Helper rules forcing complete dependencies generation
+gen-release: $(OBJ_PCH_RELEASE)
+gen-debug: $(OBJ_PCH_DEBUG)
 
 # Executable binary
 bin-prepare:
-	@mkdir -p $(BIN_DIR_RELEASE) $(BIN_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
-bin-release: bin-prepare $(BIN_DIR_RELEASE)/$(TARGET_BIN)
+	mkdir -p $(BIN_DIR_RELEASE) $(BIN_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
+bin-release: bin-prepare gen-release $(BIN_DIR_RELEASE)/$(TARGET_BIN)
 $(BIN_DIR_RELEASE)/$(TARGET_BIN): $(OBJ_SRC_RELEASE)
 	$(LD) $^ $(LD_FLAGS_RELEASE) -o $@
-bin-debug: bin-prepare $(BIN_DIR_DEBUG)/$(TARGET_BIN)
+bin-debug: bin-prepare gen-debug $(BIN_DIR_DEBUG)/$(TARGET_BIN)
 $(BIN_DIR_DEBUG)/$(TARGET_BIN): $(OBJ_SRC_DEBUG)
 	$(LD) $^ $(LD_FLAGS_DEBUG) -o $@
 
 # Shared library
 shared-lib-prepare:
-	@mkdir -p $(LIB_DIR_RELEASE) $(LIB_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
-shared-lib-release: shared-lib-prepare $(LIB_DIR_RELEASE)/$(TARGET_LIB_SHARED)
+	mkdir -p $(LIB_DIR_RELEASE) $(LIB_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
+shared-lib-release: shared-lib-prepare gen-release $(LIB_DIR_RELEASE)/$(TARGET_LIB_SHARED)
 $(LIB_DIR_RELEASE)/$(TARGET_LIB_SHARED): $(OBJ_SRC_RELEASE)
 	$(LD) $^ $(LD_FLAGS_RELEASE) $(LD_FLAGS_LIB_SHARED) -o $@
-shared-lib-debug: shared-lib-prepare $(LIB_DIR_DEBUG)/$(TARGET_LIB_SHARED)
+shared-lib-debug: shared-lib-prepare gen-debug $(LIB_DIR_DEBUG)/$(TARGET_LIB_SHARED)
 $(LIB_DIR_DEBUG)/$(TARGET_LIB_SHARED): $(OBJ_SRC_DEBUG)
 	$(LD) $^ $(LD_FLAGS_DEBUG) $(LD_FLAGS_LIB_SHARED) -o $@
 
 # Static library
 static-lib-prepare:
-	@mkdir -p $(LIB_DIR_RELEASE) $(LIB_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
-static-lib-release: static-lib-prepare $(LIB_DIR_RELEASE)/$(TARGET_LIB_STATIC)
+	mkdir -p $(LIB_DIR_RELEASE) $(LIB_DIR_DEBUG) $(COMMON_DIR_RELEASE) $(COMMON_DIR_DEBUG)
+static-lib-release: static-lib-prepare gen-release $(LIB_DIR_RELEASE)/$(TARGET_LIB_STATIC)
 $(LIB_DIR_RELEASE)/$(TARGET_LIB_STATIC): $(OBJ_SRC_RELEASE)
 	$(AR) $(AR_FLAGS) $@ $^
-static-lib-debug: static-lib-prepare $(LIB_DIR_DEBUG)/$(TARGET_LIB_STATIC)
+static-lib-debug: static-lib-prepare gen-debug $(LIB_DIR_DEBUG)/$(TARGET_LIB_STATIC)
 $(LIB_DIR_DEBUG)/$(TARGET_LIB_STATIC): $(OBJ_SRC_DEBUG)
 	$(AR) $(AR_FLAGS) $@ $^
 

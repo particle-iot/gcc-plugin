@@ -47,12 +47,14 @@ public:
 private:
     // Logging function
     struct LogFunc {
-        tree idFieldDecl, hasIdFieldDecl;
+        tree fnDecl, idFieldDecl, hasIdFieldDecl, attrType;
         unsigned fmtArgIndex, attrArgIndex;
 
         LogFunc() :
+                fnDecl(NULL_TREE),
                 idFieldDecl(NULL_TREE),
                 hasIdFieldDecl(NULL_TREE),
+                attrType(NULL_TREE),
                 fmtArgIndex(0),
                 attrArgIndex(0) {
         }
@@ -79,6 +81,7 @@ private:
     void updateMsgIds(const LogMsgList& msgList);
 
     static LogFunc makeLogFunc(tree fnDecl, unsigned fmtArgIndex);
+    static void initAttrDecls(LogFunc* logFunc);
 };
 
 } // namespace particle

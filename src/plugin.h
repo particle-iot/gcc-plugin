@@ -17,11 +17,12 @@
 
 #pragma once
 
-#include "logging/log_pass.h"
 #include "plugin/plugin_base.h"
 #include "common.h"
 
 namespace particle {
+
+class LogPass;
 
 class Plugin: public PluginBase {
 protected:

@@ -127,7 +127,7 @@ unsigned particle::LogPass::execute(function*) {
 }
 
 bool particle::LogPass::gate(function*) {
-    // Run this pass only if there are logging functions declared in current translation unit
+    // Run this pass only if current translation unit has logging functions declared
     return (msgIndex_ && !logFuncs_.empty());
 }
 
@@ -179,8 +179,11 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     if (logFuncIt == logFuncs_.end()) {
         return; // Not a logging function
     }
+    LogFunc& logFunc = logFuncIt->second;
+    if (logFunc.idFieldDecl == NULL_TREE || logFunc.hasIdFieldDecl == NULL_TREE) {
+        initAttrDecls(&logFunc); // Declarations of the attribute fields are looked up lazily
+    }
     const Location stmtLoc = location(stmt);
-    const LogFunc& logFunc = logFuncIt->second;
     const unsigned argCount = gimple_call_num_args(stmt);
     if (logFunc.fmtArgIndex >= argCount || logFunc.attrArgIndex >= argCount) {
         warning(stmtLoc, "Unexpected number of arguments");
@@ -215,7 +218,7 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         warning(stmtLoc, "Invalid format string: \"%s\"", fmtStr);
         return;
     }
-    DEBUG("%s: Log message: \"%s\" -> %s", stmtLoc.str(), fmtStr, fmtParser.hasSpecs() ? fmtParser.joinSpecs(' ') : "NULL");
+    DEBUG("%s: Log message: \"%s\" -> \"%s\"", stmtLoc.str(), fmtStr, fmtParser.hasSpecs() ? fmtParser.joinSpecs(' ') : "NULL");
     const std::string fmtSpecStr = fmtParser.joinSpecs(FMT_SPEC_SEP);
     if (!fmtSpecStr.empty()) {
         fmt = build_string_literal(fmtSpecStr.size() + 1, fmtSpecStr.data()); // Length includes term. null
@@ -243,7 +246,7 @@ void particle::LogPass::updateMsgIds(const LogMsgList& msgList) {
     assert(msgIndex_);
     const auto res = msgIndex_->process(msgList.begin(), msgList.end(), &LogMsg::fmtStr);
     assert(res.size() == msgList.size());
-    // Update log statements with correct message ID values
+    // Update log statements with retrieved message ID values
     for (const auto& r: res) {
         tree rhs = build_int_cst(unsigned_type_node, r.second); // Message ID
         gimple_assign_set_rhs1(r.first->assignIdStmt, rhs);
@@ -283,24 +286,33 @@ particle::LogPass::LogFunc particle::LogPass::makeLogFunc(tree fnDecl, unsigned 
         throw PassError(loc, "Invalid index of the format string argument");
     }
     if (!isConstCharPtr(fmtType)) {
-        throw PassError(loc, "Format string argument is not a `const char*` string");
+        throw PassError(loc, "Format argument is not a `const char*` string");
     }
     if (attrType == NULL_TREE) {
         throw PassError(loc, "Logging function is expected to take `%s*` argument", LOG_ATTR_STRUCT);
     }
-    if (!COMPLETE_TYPE_P(attrType)) {
-        throw PassError(loc, "`%s` is an incomplete type", LOG_ATTR_STRUCT);
-    }
+    // Note: In order to avoid early compilation errors, declarations of the necessary attribute fields
+    // are retrieved only if this logging function gets called in current translation unit
     LogFunc logFunc;
+    logFunc.fnDecl = fnDecl;
+    logFunc.attrType = attrType;
     logFunc.fmtArgIndex = fmtArgIndex;
     logFunc.attrArgIndex = attrArgIndex;
-    logFunc.idFieldDecl = findFieldDecl(attrType, LOG_ATTR_ID_FIELD);
-    if (logFunc.idFieldDecl == NULL_TREE) {
-        throw PassError(loc, "`%s` is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_ID_FIELD);
-    }
-    logFunc.hasIdFieldDecl = findFieldDecl(attrType, LOG_ATTR_HAS_ID_FIELD);
-    if (logFunc.hasIdFieldDecl == NULL_TREE) {
-        throw PassError(loc, "`%s` is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_HAS_ID_FIELD);
-    }
     return logFunc;
+}
+
+void particle::LogPass::initAttrDecls(LogFunc* logFunc) {
+    assert(logFunc);
+    const Location loc = location(logFunc->fnDecl);
+    if (!COMPLETE_TYPE_P(logFunc->attrType)) {
+        throw PassError(loc, "`%s` is an incomplete type", LOG_ATTR_STRUCT);
+    }
+    logFunc->idFieldDecl = findFieldDecl(logFunc->attrType, LOG_ATTR_ID_FIELD);
+    if (logFunc->idFieldDecl == NULL_TREE) {
+        throw PassError(loc, "`%s` type is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_ID_FIELD);
+    }
+    logFunc->hasIdFieldDecl = findFieldDecl(logFunc->attrType, LOG_ATTR_HAS_ID_FIELD);
+    if (logFunc->hasIdFieldDecl == NULL_TREE) {
+        throw PassError(loc, "`%s` type is missing `%s` field", LOG_ATTR_STRUCT, LOG_ATTR_HAS_ID_FIELD);
+    }
 }

@@ -27,8 +27,9 @@
 #include <vector>
 #include <map>
 
+// Defines a plugin entry point function
 #define PARTICLE_PLUGIN_INIT(_type) \
-        extern "C" int plugin_init(plugin_name_args *args, plugin_gcc_version *version) { \
+        extern "C" int plugin_init(plugin_name_args* args, plugin_gcc_version* version) { \
             return ::particle::initPlugin<_type>(args, version); \
         }
 
@@ -49,15 +50,14 @@ public:
     // Returns plugin arguments
     const PluginArgs& pluginArgs() const;
 
-    // Produces fatal compiler error
-    static void error(const std::string& msg);
+    // Called internally by PARTICLE_PLUGIN_INIT()
+    void init(plugin_name_args* args, plugin_gcc_version* version);
 
+    // Produces fatal compiler error
     template<typename... ArgsT>
     static void error(const std::string& fmt, ArgsT&&... args);
 
-    // Called internally by PARTICLE_PLUGIN_INIT()
-    void init(plugin_name_args *args, plugin_gcc_version *version);
-
+    // Returns plugin instance
     static PluginBase* instance();
 
 protected:
@@ -82,6 +82,10 @@ private:
     struct AttrSpecData {
         attribute_spec gcc;
         AttrSpec::Handler handler;
+
+        AttrSpecData() :
+                gcc() {
+        }
     };
 
     std::map<std::string, AttrSpecData> attrSpecs_;
@@ -110,13 +114,9 @@ inline const particle::PluginArgs& particle::PluginBase::pluginArgs() const {
     return pluginArgs_;
 }
 
-inline void particle::PluginBase::error(const std::string& msg) {
-    ::error("%s", msg.data());
-}
-
 template<typename... ArgsT>
 inline void particle::PluginBase::error(const std::string& fmt, ArgsT&&... args) {
-    error(format(fmt, std::forward<ArgsT>(args)...));
+    ::error_at(UNKNOWN_LOCATION, "%s", format(fmt, std::forward<ArgsT>(args)...).data());
 }
 
 template<typename T>
