@@ -26,11 +26,11 @@ $ make all \
 Example:
 ```
 $ gcc -iplugindir=path/to/plugin/directory -fplugin=particle_plugin \
-  -fplugin-arg-particle_plugin-msg-index=path/to/current-index.json \
-  -fplugin-arg-particle_plugin-msg-index-predef=path/to/predefined-index.json \
+  -fplugin-arg-particle_plugin-target-msg-file=path/to/target-messages.json \
+  -fplugin-arg-particle_plugin-predef-msg-file=path/to/predefined-messages.json \
   ...
 ```
 
 The plugin supports the following arguments:
-* `msg-index`: path to a _current_ message index file.
-* `msg-index-predef`: path to a _predefined_ message index file (optional).
+* `target-msg-file`: path to a target message file.
+* `predef-msg-file`: path to a predefined message file (optional).

@@ -82,20 +82,20 @@ tree findFieldDecl(tree structType, const std::string& fieldName) {
 
 particle::LogPass::LogPass(gcc::context* ctx, const PluginArgs& args) :
         Pass<BaseType>(LOG_PASS_DATA, ctx) {
-    // Current index file
-    std::string curIndexFile;
-    auto it = args.find("msg-index");
+    // Target message file
+    std::string targetMsgFile;
+    auto it = args.find("target-msg-file");
     if (it != args.end()) {
-        curIndexFile = it->second.toString();
+        targetMsgFile = it->second.toString();
     }
-    if (!curIndexFile.empty()) {
-        // Predefined index file (optional)
-        std::string predefIndexFile;
-        it = args.find("msg-index-predef");
+    if (!targetMsgFile.empty()) {
+        // Predefined message file (optional)
+        std::string predefMsgFile;
+        it = args.find("predef-msg-file");
         if (it != args.end()) {
-            predefIndexFile = it->second.toString();
+            predefMsgFile = it->second.toString();
         }
-        msgIndex_.reset(new MsgIndex(curIndexFile, predefIndexFile));
+        msgIndex_.reset(new MsgIndex(targetMsgFile, predefMsgFile));
     }
 }
 
@@ -119,6 +119,8 @@ unsigned particle::LogPass::execute(function*) {
         }
     } catch (const PassError& e) {
         error(e.location(), e.message());
+    } catch (const Error& e) {
+        error(e.message());
     } catch (const std::exception& e) {
         // Include plugin name for better readability
         error("%s: %s", PluginBase::instance()->pluginName(), e.what());

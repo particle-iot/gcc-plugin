@@ -34,7 +34,7 @@ public:
     template<typename IterT>
     using Result = std::pair<IterT, MsgId>;
 
-    explicit MsgIndex(const std::string& curFile, const std::string& predefFile = std::string());
+    explicit MsgIndex(const std::string& targetFile, const std::string& predefFile = std::string());
 
     template<typename IterT, typename MsgT, typename FmtStrT>
     std::list<Result<IterT>> process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr);
@@ -42,7 +42,7 @@ public:
 private:
     enum MsgType {
         NEW = 0x01,
-        CURRENT = 0x02,
+        TARGET = 0x02,
         PREDEF = 0x04
     };
 
@@ -63,7 +63,7 @@ private:
     class IndexReader;
     class IndexWriter;
 
-    std::string curFile_, predefFile_;
+    std::string targetFile_, predefFile_;
 
     void process(MsgMap* msgMap) const;
 };

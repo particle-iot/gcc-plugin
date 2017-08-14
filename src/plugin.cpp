@@ -26,7 +26,7 @@ namespace {
 
 const int PLUGIN_VERSION_MAJOR = 0;
 const int PLUGIN_VERSION_MINOR = 1;
-const int PLUGIN_VERSION_PATCH = 0;
+// const int PLUGIN_VERSION_PATCH = 0;
 
 // Plugin version exposed via PARTICLE_GCC_PLUGIN macro
 const int PLUGIN_VERSION = PLUGIN_VERSION_MAJOR * 1000 + PLUGIN_VERSION_MINOR;

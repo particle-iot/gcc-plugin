@@ -222,7 +222,7 @@ private:
 
     void checkState(unsigned mask) const {
         if (!(state_ & mask)) {
-            throw Error("Invalid format of the message index file");
+            throw Error("Invalid format of the message data");
         }
     }
 };
@@ -271,11 +271,11 @@ private:
     unsigned msgTypeMask_, msgCount_;
 };
 
-particle::MsgIndex::MsgIndex(const std::string& curFile, const std::string& predefFile) {
-    assert(!curFile.empty());
-    curFile_ = fs::absolute(curFile).string();
+particle::MsgIndex::MsgIndex(const std::string& targetFile, const std::string& predefFile) {
+    assert(!targetFile.empty());
+    targetFile_ = fs::weakly_canonical(targetFile).string();
     if (!predefFile.empty()) {
-        predefFile_ = fs::absolute(predefFile).string();
+        predefFile_ = fs::weakly_canonical(predefFile).string();
     }
 }
 
@@ -284,32 +284,32 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
     if (msgMap->empty()) {
         return;
     }
-    // Process current index file
-    DEBUG("Opening current index file: %s", curFile_);
-    std::fstream curStrm;
-    curStrm.exceptions(std::ios::badbit); // Enable exceptions
-    curStrm.open(curFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
-    if (!curStrm.is_open()) {
-        throw Error("Unable to open index file: %s", curFile_);
+    // Process target message file
+    DEBUG("Opening target message file: %s", targetFile_);
+    std::fstream targetStrm;
+    targetStrm.exceptions(std::ios::badbit); // Enable exceptions
+    targetStrm.open(targetFile_, std::ios::in | std::ios::out | std::ios::app | std::ios::binary);
+    if (!targetStrm.is_open()) {
+        throw Error("Unable to open message file: %s", targetFile_);
     }
-    curStrm.seekg(0);
+    targetStrm.seekg(0);
     // TODO: Acquire a sharable lock first
-    ipc::file_lock curFileLock(curFile_.data());
-    const std::lock_guard<ipc::file_lock> curLock(curFileLock);
-    IndexReader curReader(&curStrm, msgMap, MsgType::CURRENT);
-    curReader.parse();
-    if (curReader.foundMsgCount() == msgMap->size()) {
+    ipc::file_lock targetLock(targetFile_.data());
+    const std::lock_guard<ipc::file_lock> targetLockGuard(targetLock);
+    IndexReader targetReader(&targetStrm, msgMap, MsgType::TARGET);
+    targetReader.parse();
+    if (targetReader.foundMsgCount() == msgMap->size()) {
         return; // All messages have been processed
     }
-    MsgId maxMsgId = curReader.maxMsgId();
+    MsgId maxMsgId = targetReader.maxMsgId();
     if (!predefFile_.empty()) {
-        // Process predefined index file
-        DEBUG("Opening predefined index file: %s", predefFile_);
+        // Process predefined message file
+        DEBUG("Opening predefined message file: %s", predefFile_);
         std::ifstream predefStrm;
         predefStrm.exceptions(std::ios::badbit); // Enable exceptions
         predefStrm.open(predefFile_, std::ios::in | std::ios::binary);
         if (!predefStrm.is_open()) {
-            throw Error("Unable to open index file: %s", predefFile_);
+            throw Error("Unable to open message file: %s", predefFile_);
         }
         IndexReader predefReader(&predefStrm, msgMap, MsgType::PREDEF);
         predefReader.parse();
@@ -318,25 +318,23 @@ void particle::MsgIndex::process(MsgMap* msgMap) const {
             maxMsgId = predefMaxMsgId;
         }
     }
-    // Save new and predefined messages to current index file
-    DEBUG("Updating current index file");
+    // Save new and predefined messages to the target file
+    DEBUG("Updating target message file");
     std::ostringstream newStrm;
     newStrm.exceptions(std::ios::badbit); // Enable exceptions
     IndexWriter newWriter(&newStrm, msgMap, maxMsgId, MsgType::NEW | MsgType::PREDEF);
     newWriter.serialize();
-    assert(newWriter.writtenMsgCount() + curReader.foundMsgCount() == msgMap->size());
+    assert(newWriter.writtenMsgCount() + targetReader.foundMsgCount() == msgMap->size());
     const std::string newJson = newStrm.str();
-    curStrm.clear(); // Clear state flags
-    // TODO: Truncation of the index file can be avoided in most cases
-    if (curReader.totalMsgCount() == 0) {
-        // Overwrite index file
-        fs::resize_file(curFile_, 0);
-        curStrm.write(newJson.data(), newJson.size());
+    targetStrm.clear(); // Clear state flags
+    // TODO: Truncation of the target file can be avoided in most cases
+    if (targetReader.totalMsgCount() == 0) {
+        fs::resize_file(targetFile_, 0); // Overwrite file
+        targetStrm.write(newJson.data(), newJson.size());
     } else {
-        // Append message data to index file
-        fs::resize_file(curFile_, curReader.lastMsgEndPos());
-        appendJsonIndex(&curStrm, newJson);
+        fs::resize_file(targetFile_, targetReader.lastMsgEndPos()); // Append to file
+        appendJsonIndex(&targetStrm, newJson);
     }
-    curStrm.write("\n", 1);
-    curStrm.close(); // Flush stream before releasing the file lock
+    targetStrm.write("\n", 1);
+    targetStrm.close(); // Flush stream before releasing the file lock
 }
