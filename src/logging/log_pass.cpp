@@ -18,6 +18,7 @@
 #include "logging/log_pass.h"
 
 #include "logging/msg_index.h"
+#include "logging/attr_parser.h"
 #include "logging/fmt_parser.h"
 #include "plugin/gimple.h"
 #include "debug.h"
@@ -106,7 +107,7 @@ unsigned particle::LogPass::execute(function*) {
     try {
         // Collect all log messages
         LogMsgList msgList;
-        cgraph_node *node = nullptr;
+        cgraph_node* node = nullptr;
         FOR_EACH_DEFINED_FUNCTION(node) {
             function* const fn = node->get_fun();
             if (fn) {
@@ -221,13 +222,19 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         return;
     }
     DEBUG("%s: Log message: \"%s\" -> \"%s\"", stmtLoc.str(), fmtStr, fmtParser.hasSpecs() ? fmtParser.joinSpecs(' ') : "NULL");
+    // Parse additional attributes
+    try {
+        AttrParser attrParser(stmtLoc);
+    } catch (const Error& e) {
+        warning(stmtLoc, e.message());
+    }
+    // Replace format string argument
     const std::string fmtSpecStr = fmtParser.joinSpecs(FMT_SPEC_SEP);
     if (!fmtSpecStr.empty()) {
         fmt = build_string_literal(fmtSpecStr.size() + 1, fmtSpecStr.data()); // Length includes term. null
     } else {
         fmt = null_pointer_node; // Set format string to NULL
     }
-    // Replace format string argument
     gimple_call_set_arg(stmt, logFunc.fmtArgIndex, fmt);
     // Set `LogAttributes::id` field
     tree lhs = buildComponentRef(attr, logFunc.idFieldDecl);

@@ -22,6 +22,8 @@
 #include "error.h"
 #include "debug.h"
 
+#include <boost/algorithm/string.hpp>
+
 namespace {
 
 const int PLUGIN_VERSION_MAJOR = 0;

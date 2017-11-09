@@ -52,3 +52,18 @@
 #include <gimple-pretty-print.h>
 
 #endif // !defined(NDEBUG)
+
+// Undefine dummy macros defined in safe-ctype.h
+#undef isalpha
+#undef isalnum
+#undef iscntrl
+#undef isdigit
+#undef isgraph
+#undef islower
+#undef isprint
+#undef ispunct
+#undef isspace
+#undef isupper
+#undef isxdigit
+#undef toupper
+#undef tolower
