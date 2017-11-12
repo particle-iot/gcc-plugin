@@ -22,7 +22,6 @@
 
 #include "plugin/gcc_defs.h"
 #include "util/string.h"
-#include "error.h"
 #include "debug.h"
 
 #include <boost/algorithm/string.hpp>
@@ -44,15 +43,14 @@ std::string getSourceLine(const expanded_location& loc) {
 
 } // namespace
 
-AttrParser::AttrParser(Location loc) {
-    parse(expand_location(loc));
-}
-
-void AttrParser::parse(expanded_location loc) {
+void AttrParser::parse(Location loc) {
+    boost::optional<std::string> hintMsg, helpId;
+    boost::optional<MsgId> msgId;
     // Extract the comments block preceeding the logging statement
+    expanded_location expLoc = expand_location(loc);
     std::list<std::string> lines;
-    std::string line = getSourceLine(loc);
-    line = line.substr(0, loc.column - 1); // Column numbers are 1-based
+    std::string line = getSourceLine(expLoc);
+    line = line.substr(0, expLoc.column - 1); // Column numbers are 1-based
     bool multiLine = false;
     bool singleLine = false;
     for (;;) {
@@ -98,10 +96,10 @@ void AttrParser::parse(expanded_location loc) {
             }
         }
         // Get the previous line
-        if (--loc.line <= 0) { // Line numbers are 1-based
+        if (--expLoc.line <= 0) { // Line numbers are 1-based
             break; // End of the comments block
         }
-        line = getSourceLine(loc);
+        line = getSourceLine(expLoc);
     }
     // Check if the comments block contains Doxygen-alike named parameters
     for (const std::string& line: lines) {
@@ -113,22 +111,25 @@ void AttrParser::parse(expanded_location loc) {
         static const std::regex HELP_REGEX(".help\\s*(.+)"); // TODO: Validate the identifier syntax
         std::smatch m;
         if (std::regex_match(line, m, ID_REGEX)) {
-            if (msgId_) {
-                throw Error("Duplicate attribute: `id`");
+            if (msgId) {
+                throw ParsingError("Duplicate attribute: `id`");
             }
-            msgId_ = fromStr<MsgId>(m.str(1));
+            msgId = fromStr<MsgId>(m.str(1));
         } else if (std::regex_match(line, m, HINT_REGEX)) {
-            if (hintMsg_) {
-                throw Error("Duplicate attribute: `hint`");
+            if (hintMsg) {
+                throw ParsingError("Duplicate attribute: `hint`");
             }
-            hintMsg_ = m.str(1);
+            hintMsg = m.str(1);
         } else if (std::regex_match(line, m, HELP_REGEX)) {
-            if (helpId_) {
-                throw Error("Duplicate attribute: `help`");
+            if (helpId) {
+                throw ParsingError("Duplicate attribute: `help`");
             }
-            helpId_ = m.str(1);
+            helpId = m.str(1);
         }
     }
+    hintMsg_.swap(hintMsg);
+    helpId_.swap(helpId);
+    msgId_.swap(msgId);
 }
 
 } // namespace particle

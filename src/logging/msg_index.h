@@ -19,10 +19,15 @@
 
 #include "common.h"
 
+#include <boost/filesystem.hpp>
+#include <boost/optional.hpp>
+#include <boost/functional/hash.hpp>
+
 #include <unordered_map>
-#include <list>
 
 namespace particle {
+
+namespace fs = boost::filesystem;
 
 typedef unsigned MsgId;
 
@@ -30,74 +35,106 @@ const MsgId INVALID_MSG_ID = 0;
 
 class MsgIndex {
 public:
-    // Result of the index lookup for a given message
+    // Base class for a source message
+    class Msg;
+
+    explicit MsgIndex(const std::string& destFile);
+    MsgIndex(const std::string& destFile, const std::vector<std::string>& srcFiles);
+
+    // Assigns IDs to the source messages
     template<typename IterT>
-    using Result = std::pair<IterT, MsgId>;
-
-    explicit MsgIndex(const std::string& targetFile, const std::string& predefFile = std::string());
-
-    template<typename IterT, typename MsgT, typename FmtStrT>
-    std::list<Result<IterT>> process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr);
+    void process(IterT begin, IterT end);
 
 private:
-    enum MsgType {
-        NEW = 0x01,
-        TARGET = 0x02,
-        PREDEF = 0x04
+    // Message source
+    enum MsgSrc {
+        NEW = 0x01, // New message
+        DEST = 0x02, // Message from the destination file
+        SRC = 0x04 // Message from one of the source files
     };
 
-    struct Msg {
-        MsgId id;
-        MsgType type;
-        void* data; // User data
+    struct MsgKey {
+        boost::optional<std::string> hintMsg, helpId;
+        std::string fmtStr;
 
-        Msg() :
+        struct Hash {
+            size_t operator()(const MsgKey& key) const {
+                size_t h = 0;
+                boost::hash_combine(h, key.fmtStr);
+                boost::hash_combine(h, (key.hintMsg ? *key.hintMsg : std::string()));
+                boost::hash_combine(h, (key.helpId ? *key.helpId : std::string()));
+                return h;
+            }
+        };
+
+        struct Equal {
+            bool operator()(const MsgKey& key1, const MsgKey& key2) const {
+                return (key1.fmtStr == key2.fmtStr && key1.hintMsg == key2.hintMsg && key1.helpId == key2.helpId);
+            }
+        };
+    };
+
+    struct MsgData {
+        MsgId id;
+        MsgSrc src;
+        std::list<Msg*> msgList; // Source messages
+
+        MsgData() :
                 id(INVALID_MSG_ID),
-                type(MsgType::NEW),
-                data(nullptr) {
+                src(MsgSrc::NEW) {
         }
     };
 
-    typedef std::unordered_map<std::string, Msg> MsgMap;
+    typedef std::unordered_map<MsgKey, MsgData, MsgKey::Hash, MsgKey::Equal> MsgDataMap;
 
     class IndexReader;
     class IndexWriter;
 
-    std::string targetFile_, predefFile_;
+    fs::path destFile_;
+    std::vector<fs::path> srcFiles_;
 
-    void process(MsgMap* msgMap) const;
+    void process(MsgDataMap* msgMap);
 };
 
-} // namespace particle
+class MsgIndex::Msg {
+public:
+    virtual void msgId(MsgId id) = 0; // Sets message ID
+    virtual MsgId msgId() const = 0; // Returns message ID
+    virtual std::string fmtStr() const = 0; // Returns format string
+    virtual std::string hintMsg() const = 0;  // Returns hint message
+    virtual std::string helpId() const = 0; // Returns help entry ID
+    virtual std::string srcFile() const = 0; // Returns source file name
+    virtual unsigned srcLine() const = 0; // Returns source line number
+};
 
-template<typename IterT, typename MsgT, typename FmtStrT>
-inline std::list<particle::MsgIndex::Result<IterT>> particle::MsgIndex::process(IterT begin, IterT end, FmtStrT MsgT::*fmtStr) {
-    // TODO: This code needs refactoring
-    MsgMap msgMap;
-    std::list<std::list<IterT>> iterLists; // User iterators
-    // Copy all messages to internal map
-    for (auto it = begin; it != end; ++it) {
-        std::string s = *it.*fmtStr;
-        const auto r = msgMap.insert(std::make_pair(std::move(s), Msg()));
-        Msg& msg = r.first->second;
-        if (r.second) {
-            iterLists.push_back(std::list<IterT>());
-            msg.data = &iterLists.back();
-        }
-        const auto iters = static_cast<std::list<IterT>*>(msg.data);
-        assert(iters);
-        iters->push_back(it);
-    }
-    // Process messages
-    process(&msgMap);
-    std::list<Result<IterT>> res;
-    for (auto it = msgMap.begin(); it != msgMap.end(); ++it) {
-        const Msg& msg = it->second;
-        const auto iters = static_cast<std::list<IterT>*>(msg.data);
-        assert(iters);
-        for (auto it = iters->begin(); it != iters->end(); ++it) {
-            res.push_back(std::make_pair(*it, msg.id));
-        }
-    }
-    return res;
+inline MsgIndex::MsgIndex(const std::string& destFile) :
+        MsgIndex(destFile, std::vector<std::string>()) {
 }
+
+template<typename IterT>
+inline void MsgIndex::process(IterT begin, IterT end) {
+    MsgDataMap msgMap;
+    for (auto msg = begin; msg != end; ++msg) {
+        MsgKey key;
+        key.fmtStr = msg->fmtStr();
+        std::string s = msg->hintMsg();
+        if (!s.empty()) {
+            key.hintMsg = std::move(s);
+        }
+        s = msg->helpId();
+        if (!s.empty()) {
+            key.helpId = std::move(s);
+        }
+        const auto it = msgMap.insert(std::make_pair(std::move(key), MsgData())).first;
+        it->second.msgList.push_back(&*msg);
+    }
+    process(&msgMap);
+    for (auto it = msgMap.begin(); it != msgMap.end(); ++it) {
+        assert(it->second.id != INVALID_MSG_ID);
+        for (Msg* msg: it->second.msgList) {
+            msg->msgId(it->second.id);
+        }
+    }
+}
+
+} // namespace particle

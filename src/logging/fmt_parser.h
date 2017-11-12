@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "error.h"
 #include "common.h"
 
 #include <vector>
@@ -28,7 +29,12 @@ class FmtParser {
 public:
     typedef std::vector<std::string> Specs;
 
+    class ParsingError;
+
+    FmtParser();
     explicit FmtParser(const std::string& fmt);
+
+    void parse(const std::string& fmt);
 
     // Returns all format specifiers of the format string
     const Specs& specs() const;
@@ -39,28 +45,44 @@ public:
 
     bool hasSpecs() const;
 
-    // Returns `false` in case of a parsing error
-    explicit operator bool() const;
-
 private:
     Specs specs_;
-    bool ok_;
 };
 
-} // namespace particle
+class FmtParser::ParsingError: public Error {
+public:
+    ParsingError();
 
-inline const particle::FmtParser::Specs& particle::FmtParser::specs() const {
+    template<typename... ArgsT>
+    explicit ParsingError(ArgsT&&... args);
+};
+
+inline FmtParser::FmtParser() {
+}
+
+inline FmtParser::FmtParser(const std::string& fmt) {
+    parse(fmt);
+}
+
+inline const FmtParser::Specs& FmtParser::specs() const {
     return specs_;
 }
 
-inline std::string particle::FmtParser::joinSpecs(char sep) const {
+inline std::string FmtParser::joinSpecs(char sep) const {
     return joinSpecs(std::string(1, sep));
 }
 
-inline bool particle::FmtParser::hasSpecs() const {
+inline bool FmtParser::hasSpecs() const {
     return !specs_.empty();
 }
 
-inline particle::FmtParser::operator bool() const {
-    return ok_;
+inline FmtParser::ParsingError::ParsingError() :
+        ParsingError("Parsing error") {
 }
+
+template<typename... ArgsT>
+inline FmtParser::ParsingError::ParsingError(ArgsT&&... args) :
+        Error(std::forward<ArgsT>(args)...) {
+}
+
+} // namespace particle

@@ -17,7 +17,6 @@
 
 #include "logging/log_pass.h"
 
-#include "logging/msg_index.h"
 #include "logging/attr_parser.h"
 #include "logging/fmt_parser.h"
 #include "plugin/gimple.h"
@@ -83,20 +82,20 @@ tree findFieldDecl(tree structType, const std::string& fieldName) {
 
 particle::LogPass::LogPass(gcc::context* ctx, const PluginArgs& args) :
         Pass<BaseType>(LOG_PASS_DATA, ctx) {
-    // Target message file
-    std::string targetMsgFile;
-    auto it = args.find("target-msg-file");
+    // Destination message file
+    std::string destMsgFile;
+    auto it = args.find("dest-msg-file");
     if (it != args.end()) {
-        targetMsgFile = it->second.toString();
+        destMsgFile = it->second.toString();
     }
-    if (!targetMsgFile.empty()) {
-        // Predefined message file (optional)
-        std::string predefMsgFile;
-        it = args.find("predef-msg-file");
+    if (!destMsgFile.empty()) {
+        // Source message files (optional)
+        std::vector<std::string> srcMsgFiles;
+        it = args.find("src-msg-file");
         if (it != args.end()) {
-            predefMsgFile = it->second.toString();
+            srcMsgFiles.push_back(it->second.toString());
         }
-        msgIndex_.reset(new MsgIndex(targetMsgFile, predefMsgFile));
+        msgIndex_.reset(new MsgIndex(destMsgFile, srcMsgFiles));
     }
 }
 
@@ -115,9 +114,7 @@ unsigned particle::LogPass::execute(function*) {
             }
         }
         // Update message IDs
-        if (!msgList.empty()) {
-            updateMsgIds(msgList);
-        }
+        updateMsgIds(&msgList);
     } catch (const PassError& e) {
         error(e.location(), e.message());
     } catch (const Error& e) {
@@ -216,16 +213,19 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
         return;
     }
     // Parse format string
-    FmtParser fmtParser(fmtStr);
-    if (!fmtParser) {
+    FmtParser fmtParser;
+    try {
+        fmtParser.parse(fmtStr);
+    } catch (const FmtParser::ParsingError& e) {
         warning(stmtLoc, "Invalid format string: \"%s\"", fmtStr);
         return;
     }
     DEBUG("%s: Log message: \"%s\" -> \"%s\"", stmtLoc.str(), fmtStr, fmtParser.hasSpecs() ? fmtParser.joinSpecs(' ') : "NULL");
     // Parse additional attributes
+    AttrParser attrParser;
     try {
-        AttrParser attrParser(stmtLoc);
-    } catch (const Error& e) {
+        attrParser.parse(stmtLoc);
+    } catch (const AttrParser::ParsingError& e) {
         warning(stmtLoc, e.message());
     }
     // Replace format string argument
@@ -247,18 +247,28 @@ void particle::LogPass::processStmt(gimple_stmt_iterator gsi, LogMsgList* msgLis
     gimple assignHasId = gimple_build_assign(lhs, rhs);
     gsi_insert_before(&gsi, assignHasId, GSI_SAME_STMT);
     // Add message to list
+    LogMsg msg;
+    msg.fmt = fmtStr;
+    msg.assignIdStmt = assignId;
+    msg.logStmtLoc = stmtLoc;
+    msg.id = attrParser.msgId();
+    msg.hintAttr = attrParser.hintMsg();
+    msg.helpIdAttr = attrParser.helpId();
     assert(msgList);
-    msgList->push_back(LogMsg(fmtStr, assignId));
+    msgList->push_back(std::move(msg));
 }
 
-void particle::LogPass::updateMsgIds(const LogMsgList& msgList) {
-    assert(msgIndex_);
-    const auto res = msgIndex_->process(msgList.begin(), msgList.end(), &LogMsg::fmtStr);
-    assert(res.size() == msgList.size());
-    // Update log statements with retrieved message ID values
-    for (const auto& r: res) {
-        tree rhs = build_int_cst(unsigned_type_node, r.second); // Message ID
-        gimple_assign_set_rhs1(r.first->assignIdStmt, rhs);
+void particle::LogPass::updateMsgIds(LogMsgList* msgList) {
+    assert(msgList);
+    if (!msgList->empty()) {
+        assert(msgIndex_);
+        msgIndex_->process(msgList->begin(), msgList->end());
+        // Update logging statements with actual message ID values
+        for (const LogMsg& msg: *msgList) {
+            assert(msg.id != INVALID_MSG_ID);
+            tree rhs = build_int_cst(unsigned_type_node, msg.id);
+            gimple_assign_set_rhs1(msg.assignIdStmt, rhs);
+        }
     }
 }
 

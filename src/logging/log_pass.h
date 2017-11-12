@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "logging/msg_index.h"
 #include "plugin/plugin_base.h"
 #include "plugin/pass.h"
 #include "plugin/tree.h"
@@ -29,19 +30,17 @@
 
 namespace particle {
 
-class MsgIndex;
-
 class LogPass: public Pass<simple_ipa_opt_pass> {
 public:
     LogPass(gcc::context* ctx, const PluginArgs& args);
     virtual ~LogPass();
 
-    // opt_pass
+    // Reimplemented from `opt_pass`
     virtual unsigned execute(function* fn) override;
     virtual bool gate(function* fn) override;
     virtual opt_pass* clone() override;
 
-    // Called by the Plugin instance
+    // Called by the plugin instance
     void attrHandler(tree t, const std::string& name, std::vector<Variant> args);
 
 private:
@@ -61,13 +60,44 @@ private:
     };
 
     // Log message
-    struct LogMsg {
-        std::string fmtStr;
+    struct LogMsg: MsgIndex::Msg {
+        std::string fmt, hintAttr, helpIdAttr;
         gimple assignIdStmt;
+        Location logStmtLoc;
+        MsgId id;
 
-        LogMsg(std::string fmtStr, gimple assignIdStmt) :
-                fmtStr(std::move(fmtStr)),
-                assignIdStmt(assignIdStmt) {
+        LogMsg() :
+                assignIdStmt(nullptr),
+                id(INVALID_MSG_ID) {
+        }
+
+        // Reimplemented from `MsgIndex::Msg`
+        virtual void msgId(MsgId id) override {
+            this->id = id;
+        }
+
+        virtual MsgId msgId() const override {
+            return id;
+        }
+
+        virtual std::string fmtStr() const override {
+            return fmt;
+        }
+
+        virtual std::string hintMsg() const override {
+            return hintAttr;
+        }
+
+        virtual std::string helpId() const override {
+            return helpIdAttr;
+        }
+
+        virtual std::string srcFile() const override {
+            return logStmtLoc.file();
+        }
+
+        virtual unsigned srcLine() const override {
+            return logStmtLoc.line();
         }
     };
 
@@ -78,7 +108,7 @@ private:
 
     void processFunc(function* fn, LogMsgList* msgList);
     void processStmt(gimple_stmt_iterator gsi, LogMsgList* msgList);
-    void updateMsgIds(const LogMsgList& msgList);
+    void updateMsgIds(LogMsgList* msgList);
 
     static LogFunc makeLogFunc(tree fnDecl, unsigned fmtArgIndex);
     static void initAttrDecls(LogFunc* logFunc);

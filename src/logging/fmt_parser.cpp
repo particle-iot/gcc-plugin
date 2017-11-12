@@ -17,21 +17,15 @@
 
 #include "logging/fmt_parser.h"
 
-#include "error.h"
 #include "debug.h"
 
 #include <boost/algorithm/string/join.hpp>
 
 #include <cctype>
 
+namespace particle {
+
 namespace {
-
-using namespace particle;
-
-class InvalidFmtStrError: public Error {
-public:
-    using Error::Error;
-};
 
 inline bool isOneOf(char c, const char* s) {
     while (*s != '\0') {
@@ -46,16 +40,18 @@ inline bool isOneOf(char c, const char* s) {
 inline char next(const char*& s) {
     const char c = *s;
     if (c == '\0') {
-        throw InvalidFmtStrError();
+        throw FmtParser::ParsingError();
     }
     ++s;
     return c;
 }
 
-particle::FmtParser::Specs parseFmtStr(const std::string& fmt) {
-    FmtParser::Specs specs;
+} // namespace
+
+void FmtParser::parse(const std::string& fmt) {
+    Specs specs;
     specs.reserve(4);
-    // printf() format strings can easily be parsed by a regex, but let's make it in a more readable way
+    // printf() format strings can be parsed by a regex, but let's make it in a more readable way
     const char* s = fmt.data();
     char c = 0;
     while ((c = *s) != '\0') {
@@ -108,25 +104,15 @@ particle::FmtParser::Specs parseFmtStr(const std::string& fmt) {
             continue;
         }
         if (!isOneOf(c, "csdioxXufFeEaAgGnp")) {
-            throw InvalidFmtStrError();
+            throw ParsingError();
         }
         specs.push_back(std::string(spec, s - spec));
     }
-    return specs;
+    specs_.swap(specs);
 }
 
-} // namespace
-
-particle::FmtParser::FmtParser(const std::string& fmt) :
-        ok_(false) {
-    try {
-        specs_ = parseFmtStr(fmt);
-        ok_ = true;
-    } catch (const InvalidFmtStrError&) {
-        // This class doesn't throw exceptions in case of parsing errors
-    }
-}
-
-std::string particle::FmtParser::joinSpecs(const std::string& sep) const {
+std::string FmtParser::joinSpecs(const std::string& sep) const {
     return boost::join(specs_, sep);
 }
+
+} // namespace particle

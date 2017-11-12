@@ -19,6 +19,7 @@
 
 #include "logging/msg_index.h"
 #include "plugin/location.h"
+#include "error.h"
 #include "common.h"
 
 #include <boost/optional.hpp>
@@ -27,7 +28,12 @@ namespace particle {
 
 class AttrParser {
 public:
+    class ParsingError;
+
+    AttrParser();
     explicit AttrParser(Location loc);
+
+    void parse(Location loc);
 
     MsgId msgId() const;
     bool hasMsgId() const;
@@ -41,12 +47,24 @@ public:
     bool hasAttrs() const;
 
 private:
+    boost::optional<std::string> hintMsg_, helpId_;
     boost::optional<MsgId> msgId_;
-    boost::optional<std::string> hintMsg_;
-    boost::optional<std::string> helpId_;
-
-    void parse(expanded_location loc);
 };
+
+class AttrParser::ParsingError: public Error {
+public:
+    ParsingError();
+
+    template<typename... ArgsT>
+    explicit ParsingError(ArgsT&&... args);
+};
+
+inline AttrParser::AttrParser() {
+}
+
+inline AttrParser::AttrParser(Location loc) {
+    parse(loc);
+}
 
 inline MsgId AttrParser::msgId() const {
     return (msgId_ ? *msgId_ : INVALID_MSG_ID);
@@ -74,6 +92,15 @@ inline bool AttrParser::hasHelpId() const {
 
 inline bool AttrParser::hasAttrs() const {
     return (msgId_ || hintMsg_ || helpId_);
+}
+
+inline AttrParser::ParsingError::ParsingError() :
+        ParsingError("Parsing error") {
+}
+
+template<typename... ArgsT>
+inline AttrParser::ParsingError::ParsingError(ArgsT&&... args) :
+        Error(std::forward<ArgsT>(args)...) {
 }
 
 } // namespace particle
