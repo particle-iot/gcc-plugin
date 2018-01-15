@@ -323,7 +323,7 @@ void MsgIndex::process(MsgDataMap* msgMap) {
         return;
     }
     // Ensure destination message file exists
-    const fs::path destFilePath = fs::weakly_canonical(destFile_);
+    const fs::path destFilePath(destFile_);
     const std::string destFile = destFilePath.string();
     DEBUG("Opening destination message file: %s", destFile);
     std::fstream destStrm;
@@ -347,7 +347,7 @@ void MsgIndex::process(MsgDataMap* msgMap) {
     // Process source message files
     MsgId maxMsgId = destReader.maxMsgId();
     for (const fs::path& srcFilePath: srcFiles_) {
-        const std::string srcFile = fs::weakly_canonical(srcFilePath).string();
+        const std::string srcFile = srcFilePath.string();
         DEBUG("Opening source message file: %s", srcFile);
         std::ifstream srcStrm;
         srcStrm.exceptions(std::ios::badbit); // Enable exceptions
